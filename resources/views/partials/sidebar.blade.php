@@ -3,7 +3,7 @@
 
     <nav class="nav flex-column">
         <a class="nav-link text-white" href="{{ route('dashboard') }}">Dashboard</a>
-        <a class="nav-link text-white" href="#">Clientes</a>
+        <a class="nav-link text-white" href="{{ route('clientes.index') }}">Clientes</a>
         <a class="nav-link text-white" href="#">Vehículos</a>
         <a class="nav-link text-white" href="#">Servicios</a>
         <a class="nav-link text-white" href="#">Inventario</a>
