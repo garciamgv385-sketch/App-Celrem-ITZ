@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cita;
+use App\Models\Cliente;
+use App\Models\Vehiculo;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -26,32 +29,25 @@ class CitaController extends Controller
             $dia->addDay();
         }
 
-        $citas = collect([
-            [
-                'fecha' => $inicioMes->copy()->addDays(2)->toDateString(),
-                'hora' => '09:00',
-                'cliente' => 'Juan Pérez',
-                'vehiculo' => 'Nissan Versa',
-                'servicio' => 'Cambio de aceite',
-                'estado' => 'Confirmada',
-            ],
-            [
-                'fecha' => $inicioMes->copy()->addDays(5)->toDateString(),
-                'hora' => '12:30',
-                'cliente' => 'María González',
-                'vehiculo' => 'Chevrolet Aveo',
-                'servicio' => 'Revisión de frenos',
-                'estado' => 'Pendiente',
-            ],
-            [
-                'fecha' => $inicioMes->copy()->addDays(10)->toDateString(),
-                'hora' => '16:00',
-                'cliente' => 'Carlos Ramírez',
-                'vehiculo' => 'Volkswagen Jetta',
-                'servicio' => 'Afinación',
-                'estado' => 'Confirmada',
-            ],
-        ])->groupBy('fecha');
+        $citas = Cita::with(['cliente', 'vehiculo'])
+            ->whereBetween('fecha', [
+                $inicioCalendario->toDateString(),
+                $finCalendario->toDateString()
+            ])
+            ->orderBy('fecha')
+            ->orderBy('hora')
+            ->get()
+            ->groupBy(function ($cita) {
+                return $cita->fecha->toDateString();
+            });
+
+        $clientes = Cliente::where('estado', 'activo')
+            ->orderBy('nombre')
+            ->get();
+
+        $vehiculos = Vehiculo::with('cliente')
+            ->latest()
+            ->get();
 
         $mesAnterior = $fechaActual->copy()->subMonth()->format('Y-m');
         $mesSiguiente = $fechaActual->copy()->addMonth()->format('Y-m');
@@ -60,6 +56,8 @@ class CitaController extends Controller
             'fechaActual',
             'dias',
             'citas',
+            'clientes',
+            'vehiculos',
             'mesAnterior',
             'mesSiguiente'
         ));
@@ -67,17 +65,33 @@ class CitaController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'cliente' => ['required', 'string', 'max:100'],
-            'vehiculo' => ['required', 'string', 'max:100'],
-            'servicio' => ['required', 'string', 'max:100'],
+        $validated = $request->validate([
+            'cliente_id' => ['required', 'exists:clientes,id'],
+            'vehiculo_id' => ['nullable', 'exists:vehiculos,id'],
+            'servicio' => ['required', 'string', 'max:255'],
             'fecha' => ['required', 'date'],
             'hora' => ['required'],
+            'estado' => ['required', 'in:pendiente,confirmada,cancelada,atendida'],
             'observaciones' => ['nullable', 'string'],
         ]);
 
+        $citaExistente = Cita::where('fecha', $validated['fecha'])
+            ->where('hora', $validated['hora'])
+            ->whereIn('estado', ['pendiente', 'confirmada'])
+            ->exists();
+
+        if ($citaExistente) {
+            return back()
+                ->withErrors([
+                    'hora' => 'Ya existe una cita agendada en esa fecha y hora.',
+                ])
+                ->withInput();
+        }
+
+        Cita::create($validated);
+
         return redirect()
-            ->route('citas.index')
-            ->with('success', 'Cita agendada correctamente. Después se conectará con la base de datos.');
+            ->route('citas.index', ['mes' => Carbon::parse($validated['fecha'])->format('Y-m')])
+            ->with('success', 'Cita agendada correctamente.');
     }
 }

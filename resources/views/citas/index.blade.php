@@ -20,7 +20,7 @@
     }
 
     .calendar-day {
-        min-height: 140px;
+        min-height: 145px;
         padding: 10px;
         border-right: 1px solid #dee2e6;
         border-bottom: 1px solid #dee2e6;
@@ -44,9 +44,19 @@
         border-left: 4px solid #0d6efd;
     }
 
-    .appointment-pending {
+    .appointment-pendiente {
         background: #fff3cd;
         border-left-color: #ffc107;
+    }
+
+    .appointment-cancelada {
+        background: #f8d7da;
+        border-left-color: #dc3545;
+    }
+
+    .appointment-atendida {
+        background: #d1e7dd;
+        border-left-color: #198754;
     }
 </style>
 
@@ -66,6 +76,12 @@
 @if (session('success'))
     <div class="alert alert-success">
         {{ session('success') }}
+    </div>
+@endif
+
+@if ($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
     </div>
 @endif
 
@@ -110,12 +126,30 @@
                             </div>
 
                             @foreach ($citas->get($dia->toDateString(), []) as $cita)
-                                <div class="appointment {{ $cita['estado'] === 'Pendiente' ? 'appointment-pending' : '' }}">
+                                <div class="appointment appointment-{{ $cita->estado }}">
                                     <div class="fw-semibold">
-                                        {{ $cita['hora'] }} - {{ $cita['servicio'] }}
+                                        {{ substr($cita->hora, 0, 5) }} - {{ $cita->servicio }}
                                     </div>
-                                    <div>{{ $cita['cliente'] }}</div>
-                                    <div class="text-muted">{{ $cita['vehiculo'] }}</div>
+
+                                    <div>
+                                        {{ $cita->cliente->nombre }}
+                                    </div>
+
+                                    <div class="text-muted">
+                                        @if ($cita->vehiculo)
+                                            {{ $cita->vehiculo->marca ?? '' }}
+                                            {{ $cita->vehiculo->modelo ?? '' }}
+                                            {{ $cita->vehiculo->placas ? '(' . $cita->vehiculo->placas . ')' : '' }}
+                                        @else
+                                            Sin vehículo asignado
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-1">
+                                        <span class="badge bg-secondary">
+                                            {{ ucfirst($cita->estado) }}
+                                        </span>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -137,27 +171,33 @@
                 </div>
 
                 <div class="d-flex justify-content-between border-bottom py-2">
+                    <span>Pendientes</span>
+                    <strong>{{ $citas->flatten(1)->where('estado', 'pendiente')->count() }}</strong>
+                </div>
+
+                <div class="d-flex justify-content-between border-bottom py-2">
                     <span>Confirmadas</span>
-                    <strong>{{ $citas->flatten(1)->where('estado', 'Confirmada')->count() }}</strong>
+                    <strong>{{ $citas->flatten(1)->where('estado', 'confirmada')->count() }}</strong>
                 </div>
 
                 <div class="d-flex justify-content-between py-2">
-                    <span>Pendientes</span>
-                    <strong>{{ $citas->flatten(1)->where('estado', 'Pendiente')->count() }}</strong>
+                    <span>Atendidas</span>
+                    <strong>{{ $citas->flatten(1)->where('estado', 'atendida')->count() }}</strong>
                 </div>
             </div>
         </div>
 
         <div class="card shadow-sm border-0">
             <div class="card-body">
-                <h5 class="card-title">Tipos de cita</h5>
+                <h5 class="card-title">Estados</h5>
 
-                <span class="badge bg-primary mb-2">Confirmada</span>
                 <span class="badge bg-warning text-dark mb-2">Pendiente</span>
+                <span class="badge bg-primary mb-2">Confirmada</span>
+                <span class="badge bg-success mb-2">Atendida</span>
+                <span class="badge bg-danger mb-2">Cancelada</span>
 
                 <p class="text-muted small mt-3 mb-0">
-                    Esta vista servirá para controlar las citas del taller,
-                    servicios programados y mantenimientos preventivos.
+                    Esta agenda permite organizar los servicios programados del taller.
                 </p>
             </div>
         </div>
@@ -179,40 +219,114 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Cliente</label>
-                            <input type="text" name="cliente" class="form-control" placeholder="Nombre del cliente" required>
+                            <select name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror" required>
+                                <option value="">Selecciona un cliente</option>
+
+                                @foreach ($clientes as $cliente)
+                                    <option value="{{ $cliente->id }}" @selected(old('cliente_id') == $cliente->id)>
+                                        {{ $cliente->nombre }} - {{ $cliente->telefono }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            @error('cliente_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">Vehículo</label>
-                            <input type="text" name="vehiculo" class="form-control" placeholder="Ej. Nissan Versa 2018" required>
+                            <select name="vehiculo_id" class="form-select @error('vehiculo_id') is-invalid @enderror">
+                                <option value="">Sin vehículo asignado</option>
+
+                                @foreach ($vehiculos as $vehiculo)
+                                    <option value="{{ $vehiculo->id }}" @selected(old('vehiculo_id') == $vehiculo->id)>
+                                        {{ $vehiculo->marca ?? 'Vehículo' }}
+                                        {{ $vehiculo->modelo ?? '' }}
+                                        {{ $vehiculo->placas ? '- ' . $vehiculo->placas : '' }}
+                                        {{ $vehiculo->cliente ? '(' . $vehiculo->cliente->nombre . ')' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            @error('vehiculo_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">Servicio</label>
-                            <select name="servicio" class="form-select" required>
+                            <select name="servicio" class="form-select @error('servicio') is-invalid @enderror" required>
                                 <option value="">Selecciona un servicio</option>
-                                <option value="Cambio de aceite">Cambio de aceite</option>
-                                <option value="Afinación">Afinación</option>
-                                <option value="Revisión de frenos">Revisión de frenos</option>
-                                <option value="Cambio de filtros">Cambio de filtros</option>
-                                <option value="Diagnóstico general">Diagnóstico general</option>
-                                <option value="Mantenimiento preventivo">Mantenimiento preventivo</option>
+                                <option value="Cambio de aceite" @selected(old('servicio') === 'Cambio de aceite')>Cambio de aceite</option>
+                                <option value="Afinación" @selected(old('servicio') === 'Afinación')>Afinación</option>
+                                <option value="Revisión de frenos" @selected(old('servicio') === 'Revisión de frenos')>Revisión de frenos</option>
+                                <option value="Cambio de filtros" @selected(old('servicio') === 'Cambio de filtros')>Cambio de filtros</option>
+                                <option value="Diagnóstico general" @selected(old('servicio') === 'Diagnóstico general')>Diagnóstico general</option>
+                                <option value="Mantenimiento preventivo" @selected(old('servicio') === 'Mantenimiento preventivo')>Mantenimiento preventivo</option>
                             </select>
+
+                            @error('servicio')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-3">
                             <label class="form-label">Fecha</label>
-                            <input type="date" name="fecha" class="form-control" required>
+                            <input
+                                type="date"
+                                name="fecha"
+                                class="form-control @error('fecha') is-invalid @enderror"
+                                value="{{ old('fecha') }}"
+                                required
+                            >
+
+                            @error('fecha')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-3">
                             <label class="form-label">Hora</label>
-                            <input type="time" name="hora" class="form-control" required>
+                            <input
+                                type="time"
+                                name="hora"
+                                class="form-control @error('hora') is-invalid @enderror"
+                                value="{{ old('hora') }}"
+                                required
+                            >
+
+                            @error('hora')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Estado</label>
+                            <select name="estado" class="form-select @error('estado') is-invalid @enderror" required>
+                                <option value="pendiente" @selected(old('estado', 'pendiente') === 'pendiente')>Pendiente</option>
+                                <option value="confirmada" @selected(old('estado') === 'confirmada')>Confirmada</option>
+                                <option value="cancelada" @selected(old('estado') === 'cancelada')>Cancelada</option>
+                                <option value="atendida" @selected(old('estado') === 'atendida')>Atendida</option>
+                            </select>
+
+                            @error('estado')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-12">
                             <label class="form-label">Observaciones</label>
-                            <textarea name="observaciones" class="form-control" rows="3" placeholder="Detalles adicionales de la cita"></textarea>
+                            <textarea
+                                name="observaciones"
+                                class="form-control @error('observaciones') is-invalid @enderror"
+                                rows="3"
+                                placeholder="Detalles adicionales de la cita"
+                            >{{ old('observaciones') }}</textarea>
+
+                            @error('observaciones')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                 </div>
