@@ -4,12 +4,12 @@
     <nav class="nav flex-column">
         <a class="nav-link text-white" href="{{ route('dashboard') }}">Panel principal</a>
         <a class="nav-link text-white" href="{{ route('clientes.index') }}">Clientes</a>
-        <a class="nav-link text-white" href="#">Vehículos</a>
-        <a class="nav-link text-white" href="#">Servicios</a>
+        <a class="nav-link text-white" href="{{ route('vehiculos.index') }}">Vehículos</a>
+        {{--<a class="nav-link text-white" href="#">Servicios</a>
         <a class="nav-link text-white" href="#">Inventario</a>
         <a class="nav-link text-white" href="#">Órdenes</a>
         <a class="nav-link text-white" href="#">Ventas</a>
         <a class="nav-link text-white" href="#">Compras</a>
-        <a class="nav-link text-white" href="#">Reportes</a>
+        <a class="nav-link text-white" href="#">Reportes</a>--}}
     </nav>
 </aside>

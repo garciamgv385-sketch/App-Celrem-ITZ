@@ -25,7 +25,7 @@
                                 <div class="card-body">
                                     <h5 class="mb-1">Acceso protegido</h5>
                                     <p class="mb-0 small">
-                                        Tus datos se guardan en MySQL y la contraseña se almacena cifrada.
+                                        Tus datos se guardan en nuestra base de datos 100% confiable y la contraseña se almacena cifrada.
                                     </p>
                                 </div>
                             </div>

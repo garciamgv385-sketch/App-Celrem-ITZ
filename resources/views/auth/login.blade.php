@@ -130,9 +130,9 @@
                                         </label>
                                     </div>
 
-                                    <a href="#" class="text-decoration-none small">
-                                        ¿Olvidaste tu contraseña?
-                                    </a>
+                                    {{--<a href="#" class="text-decoration-none small">
+                                    ¿Olvidaste tu contraseña?
+                                    </a>--}}
                                 </div>
 
                                 <button type="submit" class="btn btn-primary w-100">

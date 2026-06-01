@@ -47,7 +47,7 @@ CREATE TABLE `clientes` (
   KEY `clientes_nombre_index` (`nombre`),
   KEY `clientes_telefono_index` (`telefono`),
   KEY `clientes_correo_index` (`correo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `failed_jobs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -105,7 +105,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `password_reset_tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -146,6 +146,33 @@ CREATE TABLE `users` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `vehiculos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vehiculos` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `cliente_id` bigint unsigned NOT NULL,
+  `tipo` enum('moto','auto','servicio_pesado','camioneta','otro') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'auto',
+  `marca` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `modelo` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `anio` smallint unsigned NOT NULL,
+  `placas` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kilometraje_actual` int unsigned NOT NULL DEFAULT '0',
+  `tipo_combustible` enum('gasolina','diesel','hibrido','electrico','gas') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `estado` enum('activo','inactivo','en_servicio') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'activo',
+  `observaciones` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `vehiculos_placas_unique` (`placas`),
+  KEY `vehiculos_cliente_id_foreign` (`cliente_id`),
+  KEY `vehiculos_modelo_index` (`modelo`),
+  KEY `vehiculos_anio_index` (`anio`),
+  KEY `vehiculos_placas_index` (`placas`),
+  KEY `vehiculos_tipo_index` (`tipo`),
+  CONSTRAINT `vehiculos_cliente_id_foreign` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

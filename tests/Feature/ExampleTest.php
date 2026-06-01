@@ -79,4 +79,49 @@ class ExampleTest extends TestCase
             ->assertSee('Cliente de prueba')
             ->assertSee('Cliente generado desde prueba.');
     }
+
+    public function test_authenticated_user_can_create_and_filter_vehicles(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('clientes.store'), [
+            'nombre' => 'Cliente con vehiculo',
+            'telefono' => '443 111 2222',
+            'correo' => 'vehiculo@example.com',
+            'direccion' => 'Zitacuaro, Michoacan',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $clienteId = \App\Models\Cliente::where('correo', 'vehiculo@example.com')->value('id');
+
+        $response = $this->actingAs($user)->post(route('vehiculos.store'), [
+            'cliente_id' => $clienteId,
+            'tipo' => 'auto',
+            'marca' => 'Nissan',
+            'modelo' => 'Versa',
+            'anio' => 2022,
+            'placas' => 'ABC-123',
+            'kilometraje_actual' => 45000,
+            'tipo_combustible' => 'gasolina',
+            'estado' => 'activo',
+            'observaciones' => 'Vehiculo registrado desde prueba.',
+        ]);
+
+        $response->assertRedirect(route('vehiculos.index'));
+        $this->assertDatabaseHas('vehiculos', [
+            'cliente_id' => $clienteId,
+            'tipo' => 'auto',
+            'modelo' => 'Versa',
+            'anio' => 2022,
+            'placas' => 'ABC-123',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('vehiculos.index', ['buscar' => 'Cliente con vehiculo']))
+            ->assertOk()
+            ->assertSee('Cliente con vehiculo')
+            ->assertSee('Versa')
+            ->assertSee('ABC-123');
+    }
 }

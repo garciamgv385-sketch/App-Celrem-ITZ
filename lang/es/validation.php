@@ -53,5 +53,13 @@ return [
         'direccion' => 'dirección',
         'estado' => 'estado',
         'observaciones' => 'observaciones',
+        'cliente_id' => 'cliente',
+        'tipo' => 'tipo de vehículo',
+        'marca' => 'marca',
+        'modelo' => 'modelo',
+        'anio' => 'año',
+        'placas' => 'placas',
+        'kilometraje_actual' => 'kilometraje actual',
+        'tipo_combustible' => 'tipo de combustible',
     ],
 ];

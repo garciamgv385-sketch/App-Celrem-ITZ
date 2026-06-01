@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\VehiculoController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -18,3 +19,4 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
 
 Route::resource('clientes', ClienteController::class)->middleware('auth');
+Route::resource('vehiculos', VehiculoController::class)->only(['index', 'create', 'store'])->middleware('auth');
