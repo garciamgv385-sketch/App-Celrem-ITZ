@@ -2,7 +2,7 @@
     <span class="navbar-brand mb-0 h5">Panel de administración</span>
 
     <div class="d-flex align-items-center">
-        <span class="me-3">Usuario</span>
+        <span class="me-3">{{ auth()->user()?->name ?? 'Usuario' }}</span>
 
         <form action="{{ route('logout') }}" method="POST" class="mb-0">
             @csrf
