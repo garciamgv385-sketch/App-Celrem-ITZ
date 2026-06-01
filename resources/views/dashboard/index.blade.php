@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 class="mb-4">Dashboard</h1>
+    <h1 class="mb-4">Panel principal</h1>
 
     <div class="row g-4">
         <div class="col-md-3">

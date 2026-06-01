@@ -1,58 +1,98 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistema de control Celrem
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplicación Laravel para administrar operaciones del taller Celrem: autenticación, clientes y módulos operativos en crecimiento.
 
-## About Laravel
+## Requisitos
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP compatible con el proyecto.
+- Composer.
+- Node.js y npm.
+- Docker Desktop.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Instalación
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+npm.cmd install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Configura el archivo `.env` a partir de `.env.example` si todavía no existe:
 
-## Contributing
+```bash
+copy .env.example .env
+php artisan key:generate
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Base de datos con Docker
 
-## Code of Conduct
+El proyecto usa un contenedor MySQL 8.4 definido en `docker-compose.yml`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+docker compose up -d mysql
+```
 
-## Security Vulnerabilities
+La conexión local de Laravel queda configurada con estos valores:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3308
+DB_DATABASE=app_celrem
+DB_USERNAME=app_celrem
+DB_PASSWORD=app_celrem_secret
+```
 
-## License
+Ejecuta las migraciones:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan migrate
+```
+
+## Levantar el proyecto
+
+En una terminal:
+
+```bash
+php artisan serve
+```
+
+En otra terminal:
+
+```bash
+npm.cmd run dev
+```
+
+La aplicación quedará disponible en:
+
+```text
+http://127.0.0.1:8000
+```
+
+## Pruebas
+
+Los tests están configurados para usar MySQL en la base `app_celrem_testing`.
+
+```bash
+php artisan test
+```
+
+## Esquema SQL
+
+El esquema SQL actual se guarda en:
+
+```text
+database/schema/mysql-schema.sql
+```
+
+Cuando agregues nuevas migraciones o tablas, ejecuta las migraciones y regenera el SQL con:
+
+```powershell
+php artisan migrate
+docker exec app_celrem_mysql mysqldump -uapp_celrem -papp_celrem_secret --host=localhost --no-data --routines --triggers --no-tablespaces --skip-comments --skip-add-locks --skip-set-charset --databases app_celrem | Out-File -FilePath database\schema\mysql-schema.sql -Encoding utf8
+```
+
+Para importar ese esquema en una base nueva desde PowerShell:
+
+```powershell
+Get-Content database\schema\mysql-schema.sql | docker exec -i app_celrem_mysql mysql -uapp_celrem -papp_celrem_secret
+```

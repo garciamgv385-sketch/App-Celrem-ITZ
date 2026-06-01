@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar sesión | Sistema Celrem</title>
+    <title>Crear cuenta | Sistema Celrem</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -16,17 +16,16 @@
                 <div class="px-5">
                     <h1 class="display-5 fw-bold mb-3">Celrem Zitácuaro</h1>
                     <p class="lead mb-4">
-                        Sistema de seguimiento de mantenimiento preventivo,
-                        refacciones y lubricantes.
+                        Crea una cuenta para administrar clientes, servicios e inventario desde el sistema.
                     </p>
 
                     <div class="row g-3">
                         <div class="col-12">
                             <div class="card bg-secondary border-0 text-white">
                                 <div class="card-body">
-                                    <h5 class="mb-1">Control de servicios</h5>
+                                    <h5 class="mb-1">Acceso protegido</h5>
                                     <p class="mb-0 small">
-                                        Administra clientes, vehículos y órdenes de trabajo.
+                                        Tus datos se guardan en MySQL y la contraseña se almacena cifrada.
                                     </p>
                                 </div>
                             </div>
@@ -35,20 +34,9 @@
                         <div class="col-12">
                             <div class="card bg-secondary border-0 text-white">
                                 <div class="card-body">
-                                    <h5 class="mb-1">Inventario inteligente</h5>
+                                    <h5 class="mb-1">Inicio inmediato</h5>
                                     <p class="mb-0 small">
-                                        Controla refacciones, aceites, lubricantes y consumibles.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="card bg-secondary border-0 text-white">
-                                <div class="card-body">
-                                    <h5 class="mb-1">Alertas preventivas</h5>
-                                    <p class="mb-0 small">
-                                        Detecta mantenimientos próximos y productos con bajo stock.
+                                        Después del registro entrarás directo al panel principal.
                                     </p>
                                 </div>
                             </div>
@@ -61,9 +49,9 @@
                 <div class="w-100" style="max-width: 430px;">
 
                     <div class="text-center mb-4">
-                        <h2 class="fw-bold">Iniciar sesión</h2>
+                        <h2 class="fw-bold">Crear cuenta</h2>
                         <p class="text-muted">
-                            Ingresa tu correo y contraseña para acceder al sistema.
+                            Registra un usuario para poder iniciar sesión.
                         </p>
                     </div>
 
@@ -76,8 +64,28 @@
                                 </div>
                             @endif
 
-                            <form action="{{ route('login.post') }}" method="POST">
+                            <form action="{{ route('register.post') }}" method="POST">
                                 @csrf
+
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Nombre</label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        id="name"
+                                        class="form-control @error('name') is-invalid @enderror"
+                                        value="{{ old('name') }}"
+                                        placeholder="Nombre completo"
+                                        required
+                                        autofocus
+                                    >
+
+                                    @error('name')
+                                        <div class="invalid-feedback">
+                                            {{ $message }}
+                                        </div>
+                                    @enderror
+                                </div>
 
                                 <div class="mb-3">
                                     <label for="email" class="form-label">Correo electrónico</label>
@@ -87,9 +95,8 @@
                                         id="email"
                                         class="form-control @error('email') is-invalid @enderror"
                                         value="{{ old('email') }}"
-                                        placeholder="admin@taller.com"
+                                        placeholder="usuario@taller.com"
                                         required
-                                        autofocus
                                     >
 
                                     @error('email')
@@ -106,7 +113,7 @@
                                         name="password"
                                         id="password"
                                         class="form-control @error('password') is-invalid @enderror"
-                                        placeholder="Ingresa tu contraseña"
+                                        placeholder="Mínimo 8 caracteres"
                                         required
                                     >
 
@@ -117,33 +124,27 @@
                                     @enderror
                                 </div>
 
-                                <div class="d-flex justify-content-between align-items-center mb-4">
-                                    <div class="form-check">
-                                        <input
-                                            class="form-check-input"
-                                            type="checkbox"
-                                            name="remember"
-                                            id="remember"
-                                        >
-                                        <label class="form-check-label" for="remember">
-                                            Recordarme
-                                        </label>
-                                    </div>
-
-                                    <a href="#" class="text-decoration-none small">
-                                        ¿Olvidaste tu contraseña?
-                                    </a>
+                                <div class="mb-4">
+                                    <label for="password_confirmation" class="form-label">Confirmar contraseña</label>
+                                    <input
+                                        type="password"
+                                        name="password_confirmation"
+                                        id="password_confirmation"
+                                        class="form-control"
+                                        placeholder="Repite tu contraseña"
+                                        required
+                                    >
                                 </div>
 
                                 <button type="submit" class="btn btn-primary w-100">
-                                    Entrar al sistema
+                                    Crear cuenta
                                 </button>
                             </form>
 
                             <div class="text-center mt-4">
-                                <span class="text-muted small">¿No tienes una cuenta?</span>
-                                <a href="{{ route('register') }}" class="text-decoration-none small fw-semibold">
-                                    Crear cuenta
+                                <span class="text-muted small">¿Ya tienes una cuenta?</span>
+                                <a href="{{ route('login') }}" class="text-decoration-none small fw-semibold">
+                                    Iniciar sesión
                                 </a>
                             </div>
                         </div>

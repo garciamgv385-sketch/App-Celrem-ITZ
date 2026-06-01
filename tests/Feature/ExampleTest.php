@@ -2,11 +2,24 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
+    use DatabaseMigrations;
+
+    protected function migrateFreshUsing(): array
+    {
+        return [
+            '--drop-views' => false,
+            '--drop-types' => false,
+            '--seed' => false,
+            '--schema-path' => database_path('schema/no-schema-dump-for-tests.sql'),
+        ];
+    }
+
     /**
      * A basic test example.
      */
@@ -14,6 +27,56 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $response->assertRedirect(route('login'));
+    }
+
+    public function test_auth_pages_can_be_rendered(): void
+    {
+        $this->get(route('login'))->assertOk();
+        $this->get(route('register'))->assertOk();
+    }
+
+    public function test_user_can_register_and_is_authenticated(): void
+    {
+        $email = 'registro-test-'.uniqid().'@example.com';
+
+        $response = $this->post(route('register.post'), [
+            'name' => 'Usuario de prueba',
+            'email' => $email,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', [
+            'email' => $email,
+        ]);
+    }
+
+    public function test_authenticated_user_can_create_and_view_clients(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('clientes.store'), [
+            'nombre' => 'Cliente de prueba',
+            'telefono' => '443 000 0000',
+            'correo' => 'cliente@example.com',
+            'direccion' => 'Zitacuaro, Michoacan',
+            'estado' => 'activo',
+            'observaciones' => 'Cliente generado desde prueba.',
+        ]);
+
+        $response->assertRedirect(route('clientes.index'));
+        $this->assertDatabaseHas('clientes', [
+            'nombre' => 'Cliente de prueba',
+            'correo' => 'cliente@example.com',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('clientes.index'))
+            ->assertOk()
+            ->assertSee('Cliente de prueba')
+            ->assertSee('Cliente generado desde prueba.');
     }
 }
