@@ -63,16 +63,19 @@
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-info"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#clienteModal{{ $cliente->id }}"
-                                    >
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#clienteDetalle{{ $cliente->id }}">
                                         Ver
                                     </button>
-                                    <button class="btn btn-sm btn-outline-warning" disabled>Editar</button>
-                                    <button class="btn btn-sm btn-outline-danger" disabled>Eliminar</button>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#clienteEditar{{ $cliente->id }}">
+                                        Editar
+                                    </button>
+                                    <form action="{{ route('clientes.destroy', $cliente) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" @disabled($cliente->estado === 'inactivo')>
+                                            Eliminar
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty
@@ -93,12 +96,12 @@
     </div>
 
     @foreach ($clientes as $cliente)
-        <div class="modal fade" id="clienteModal{{ $cliente->id }}" tabindex="-1" aria-labelledby="clienteModalLabel{{ $cliente->id }}" aria-hidden="true">
+        <div class="modal fade" id="clienteDetalle{{ $cliente->id }}" tabindex="-1" aria-labelledby="clienteDetalleLabel{{ $cliente->id }}" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
                         <div>
-                            <h2 class="modal-title fs-5" id="clienteModalLabel{{ $cliente->id }}">{{ $cliente->nombre }}</h2>
+                            <h2 class="modal-title fs-5" id="clienteDetalleLabel{{ $cliente->id }}">{{ $cliente->nombre }}</h2>
                             <span class="badge {{ $cliente->estado === 'activo' ? 'bg-success' : 'bg-secondary' }}">
                                 {{ ucfirst($cliente->estado) }}
                             </span>
@@ -128,6 +131,62 @@
                             Cerrar
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="clienteEditar{{ $cliente->id }}" tabindex="-1" aria-labelledby="clienteEditarLabel{{ $cliente->id }}" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <form action="{{ route('clientes.update', $cliente) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+
+                        <div class="modal-header">
+                            <h2 class="modal-title fs-5" id="clienteEditarLabel{{ $cliente->id }}">Editar cliente</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Nombre completo</label>
+                                    <input type="text" name="nombre" class="form-control" value="{{ $cliente->nombre }}" required>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Teléfono</label>
+                                    <input type="text" name="telefono" class="form-control" value="{{ $cliente->telefono }}" required>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Correo electrónico</label>
+                                    <input type="email" name="correo" class="form-control" value="{{ $cliente->correo }}">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Estado</label>
+                                    <select name="estado" class="form-select" required>
+                                        <option value="activo" @selected($cliente->estado === 'activo')>Activo</option>
+                                        <option value="inactivo" @selected($cliente->estado === 'inactivo')>Inactivo</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label class="form-label">Dirección</label>
+                                    <input type="text" name="direccion" class="form-control" value="{{ $cliente->direccion }}">
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label class="form-label">Observaciones</label>
+                                    <textarea name="observaciones" class="form-control" rows="4">{{ $cliente->observaciones }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

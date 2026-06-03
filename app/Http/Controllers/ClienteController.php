@@ -51,21 +51,38 @@ class ClienteController extends Controller
 
     public function show(Cliente $cliente)
     {
-        return view('clientes.show', compact('cliente'));
+        return redirect()->route('clientes.index');
     }
 
-    public function edit(string $id)
+    public function edit(Cliente $cliente)
     {
-        return view('clientes.edit');
+        return redirect()->route('clientes.index');
     }
 
-    public function update(Request $request, string $id)
+    public function update(Request $request, Cliente $cliente)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'telefono' => ['required', 'string', 'max:30'],
+            'correo' => ['nullable', 'email', 'max:255'],
+            'estado' => ['required', 'in:activo,inactivo'],
+            'direccion' => ['nullable', 'string', 'max:255'],
+            'observaciones' => ['nullable', 'string'],
+        ]);
+
+        $cliente->update($validated);
+
+        return redirect()
+            ->route('clientes.index')
+            ->with('success', 'Cliente actualizado correctamente.');
     }
 
-    public function destroy(string $id)
+    public function destroy(Cliente $cliente)
     {
-        //
+        $cliente->update(['estado' => 'inactivo']);
+
+        return redirect()
+            ->route('clientes.index')
+            ->with('success', 'Cliente marcado como inactivo.');
     }
 }

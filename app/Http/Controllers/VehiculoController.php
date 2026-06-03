@@ -29,7 +29,9 @@ class VehiculoController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view('vehiculos.index', compact('vehiculos', 'busqueda'));
+        $clientes = Cliente::orderBy('nombre')->get();
+
+        return view('vehiculos.index', compact('vehiculos', 'clientes', 'busqueda'));
     }
 
     public function create()
@@ -60,6 +62,37 @@ class VehiculoController extends Controller
         return redirect()
             ->route('vehiculos.index')
             ->with('success', 'Vehículo registrado correctamente.');
+    }
+
+    public function update(Request $request, Vehiculo $vehiculo)
+    {
+        $validated = $request->validate([
+            'cliente_id' => ['required', 'exists:clientes,id'],
+            'tipo' => ['required', Rule::in(['moto', 'auto', 'servicio_pesado', 'camioneta', 'otro'])],
+            'marca' => ['required', 'string', 'max:100'],
+            'modelo' => ['required', 'string', 'max:100'],
+            'anio' => ['required', 'integer', 'min:1980', 'max:2025'],
+            'placas' => ['required', 'string', 'max:20', Rule::unique('vehiculos', 'placas')->ignore($vehiculo)],
+            'kilometraje_actual' => ['required', 'integer', 'min:0'],
+            'tipo_combustible' => ['required', Rule::in(['gasolina', 'diesel', 'hibrido', 'electrico', 'gas'])],
+            'estado' => ['required', Rule::in(['activo', 'inactivo', 'en_servicio'])],
+            'observaciones' => ['nullable', 'string'],
+        ]);
+
+        $vehiculo->update($validated);
+
+        return redirect()
+            ->route('vehiculos.index')
+            ->with('success', 'Vehículo actualizado correctamente.');
+    }
+
+    public function destroy(Vehiculo $vehiculo)
+    {
+        $vehiculo->update(['estado' => 'inactivo']);
+
+        return redirect()
+            ->route('vehiculos.index')
+            ->with('success', 'Vehículo marcado como inactivo.');
     }
 
     private function catalogoVehiculosMexico(): array

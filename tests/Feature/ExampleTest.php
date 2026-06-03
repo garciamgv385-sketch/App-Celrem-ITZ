@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Cliente;
+use App\Models\Vehiculo;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Tests\TestCase;
 
@@ -123,5 +125,106 @@ class ExampleTest extends TestCase
             ->assertSee('Cliente con vehiculo')
             ->assertSee('Versa')
             ->assertSee('ABC-123');
+    }
+
+    public function test_authenticated_user_can_update_and_deactivate_clients(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('clientes.store'), [
+            'nombre' => 'Cliente editable',
+            'telefono' => '443 222 3333',
+            'correo' => 'editable@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => 'Antes de editar.',
+        ]);
+
+        $cliente = Cliente::where('correo', 'editable@example.com')->firstOrFail();
+
+        $this->actingAs($user)->put(route('clientes.update', $cliente), [
+            'nombre' => 'Cliente actualizado',
+            'telefono' => '443 999 8888',
+            'correo' => 'actualizado@example.com',
+            'direccion' => 'Morelia',
+            'estado' => 'activo',
+            'observaciones' => 'Despues de editar.',
+        ])->assertRedirect(route('clientes.index'));
+
+        $this->assertDatabaseHas('clientes', [
+            'id' => $cliente->id,
+            'nombre' => 'Cliente actualizado',
+            'correo' => 'actualizado@example.com',
+        ]);
+
+        $this->actingAs($user)
+            ->delete(route('clientes.destroy', $cliente))
+            ->assertRedirect(route('clientes.index'));
+
+        $this->assertDatabaseHas('clientes', [
+            'id' => $cliente->id,
+            'estado' => 'inactivo',
+        ]);
+    }
+
+    public function test_authenticated_user_can_update_and_deactivate_vehicles(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('clientes.store'), [
+            'nombre' => 'Cliente vehiculo editable',
+            'telefono' => '443 555 6666',
+            'correo' => 'vehiculo-editable@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $cliente = Cliente::where('correo', 'vehiculo-editable@example.com')->firstOrFail();
+
+        $this->actingAs($user)->post(route('vehiculos.store'), [
+            'cliente_id' => $cliente->id,
+            'tipo' => 'auto',
+            'marca' => 'Nissan',
+            'modelo' => 'Versa',
+            'anio' => 2022,
+            'placas' => 'EDIT-1',
+            'kilometraje_actual' => 45000,
+            'tipo_combustible' => 'gasolina',
+            'estado' => 'activo',
+            'observaciones' => 'Antes de editar.',
+        ]);
+
+        $vehiculo = Vehiculo::where('placas', 'EDIT-1')->firstOrFail();
+
+        $this->actingAs($user)->put(route('vehiculos.update', $vehiculo), [
+            'cliente_id' => $cliente->id,
+            'tipo' => 'camioneta',
+            'marca' => 'Toyota',
+            'modelo' => 'Hilux',
+            'anio' => 2024,
+            'placas' => 'EDIT-2',
+            'kilometraje_actual' => 12000,
+            'tipo_combustible' => 'diesel',
+            'estado' => 'en_servicio',
+            'observaciones' => 'Despues de editar.',
+        ])->assertRedirect(route('vehiculos.index'));
+
+        $this->assertDatabaseHas('vehiculos', [
+            'id' => $vehiculo->id,
+            'tipo' => 'camioneta',
+            'marca' => 'Toyota',
+            'modelo' => 'Hilux',
+            'placas' => 'EDIT-2',
+        ]);
+
+        $this->actingAs($user)
+            ->delete(route('vehiculos.destroy', $vehiculo))
+            ->assertRedirect(route('vehiculos.index'));
+
+        $this->assertDatabaseHas('vehiculos', [
+            'id' => $vehiculo->id,
+            'estado' => 'inactivo',
+        ]);
     }
 }
