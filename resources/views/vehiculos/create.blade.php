@@ -26,8 +26,11 @@
                 </div>
             @endif
 
-            <form action="{{ route('vehiculos.store') }}" method="POST">
+            <form action="{{ route('vehiculos.store') }}" method="POST" id="vehiculoForm">
                 @csrf
+
+                <input type="hidden" name="marca" id="marca" value="{{ old('marca') }}">
+                <input type="hidden" name="modelo" id="modelo" value="{{ old('modelo') }}">
 
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -64,25 +67,49 @@
 
                     <div class="col-md-6">
                         <label class="form-label">Marca</label>
-                        <input type="text" name="marca" class="form-control @error('marca') is-invalid @enderror" value="{{ old('marca') }}" placeholder="Ej. Nissan" required>
+                        <select id="marca_catalogo" class="form-select @error('marca') is-invalid @enderror">
+                            <option value="">Selecciona una marca</option>
+                            @foreach (array_keys($catalogoVehiculos) as $marca)
+                                <option value="{{ $marca }}">{{ $marca }}</option>
+                            @endforeach
+                            <option value="__otro__">Otra marca</option>
+                        </select>
+
+                        <input
+                            type="text"
+                            id="marca_manual"
+                            class="form-control mt-2 d-none"
+                            value="{{ old('marca') }}"
+                            placeholder="Escribe la marca"
+                        >
 
                         @error('marca')
-                            <div class="invalid-feedback">{{ $message }}</div>
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
 
                     <div class="col-md-6">
                         <label class="form-label">Modelo</label>
-                        <input type="text" name="modelo" class="form-control @error('modelo') is-invalid @enderror" value="{{ old('modelo') }}" placeholder="Ej. Versa" required>
+                        <select id="modelo_catalogo" class="form-select @error('modelo') is-invalid @enderror" disabled>
+                            <option value="">Selecciona primero una marca</option>
+                        </select>
+
+                        <input
+                            type="text"
+                            id="modelo_manual"
+                            class="form-control mt-2 d-none"
+                            value="{{ old('modelo') }}"
+                            placeholder="Escribe el modelo"
+                        >
 
                         @error('modelo')
-                            <div class="invalid-feedback">{{ $message }}</div>
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
 
                     <div class="col-md-3">
                         <label class="form-label">Año</label>
-                        <input type="number" name="anio" class="form-control @error('anio') is-invalid @enderror" value="{{ old('anio') }}" min="1900" max="{{ date('Y') + 1 }}" placeholder="{{ date('Y') }}" required>
+                        <input type="number" name="anio" class="form-control @error('anio') is-invalid @enderror" value="{{ old('anio') }}" min="1980" max="2025" placeholder="2025" required>
 
                         @error('anio')
                             <div class="invalid-feedback">{{ $message }}</div>
@@ -158,4 +185,91 @@
             </form>
         </div>
     </div>
+
+    <script>
+        const catalogoVehiculos = @json($catalogoVehiculos);
+        const valorMarcaInicial = @json(old('marca'));
+        const valorModeloInicial = @json(old('modelo'));
+        const marcaSelect = document.getElementById('marca_catalogo');
+        const modeloSelect = document.getElementById('modelo_catalogo');
+        const marcaManual = document.getElementById('marca_manual');
+        const modeloManual = document.getElementById('modelo_manual');
+        const marcaInput = document.getElementById('marca');
+        const modeloInput = document.getElementById('modelo');
+
+        function llenarModelos(marca, modeloSeleccionado = '') {
+            modeloSelect.innerHTML = '<option value="">Selecciona un modelo</option>';
+
+            (catalogoVehiculos[marca] || []).forEach((modelo) => {
+                const option = document.createElement('option');
+                option.value = modelo;
+                option.textContent = modelo;
+                option.selected = modelo === modeloSeleccionado;
+                modeloSelect.appendChild(option);
+            });
+
+            const otro = document.createElement('option');
+            otro.value = '__otro__';
+            otro.textContent = 'Otro modelo';
+            otro.selected = modeloSeleccionado && !(catalogoVehiculos[marca] || []).includes(modeloSeleccionado);
+            modeloSelect.appendChild(otro);
+
+            modeloSelect.disabled = !marca;
+        }
+
+        function sincronizarMarca() {
+            const marcaSeleccionada = marcaSelect.value;
+            const usaMarcaManual = marcaSeleccionada === '__otro__';
+
+            marcaManual.classList.toggle('d-none', !usaMarcaManual);
+            marcaManual.required = usaMarcaManual;
+            marcaInput.value = usaMarcaManual ? marcaManual.value.trim() : marcaSeleccionada;
+
+            if (usaMarcaManual) {
+                modeloSelect.disabled = true;
+                modeloSelect.innerHTML = '<option value="__otro__">Modelo manual</option>';
+                modeloSelect.value = '__otro__';
+                modeloManual.classList.remove('d-none');
+                modeloManual.required = true;
+                modeloInput.value = modeloManual.value.trim();
+                return;
+            }
+
+            llenarModelos(marcaSeleccionada);
+            sincronizarModelo();
+        }
+
+        function sincronizarModelo() {
+            const usaModeloManual = modeloSelect.value === '__otro__';
+
+            modeloManual.classList.toggle('d-none', !usaModeloManual);
+            modeloManual.required = usaModeloManual;
+            modeloInput.value = usaModeloManual ? modeloManual.value.trim() : modeloSelect.value;
+        }
+
+        marcaSelect.addEventListener('change', sincronizarMarca);
+        modeloSelect.addEventListener('change', sincronizarModelo);
+        marcaManual.addEventListener('input', sincronizarMarca);
+        modeloManual.addEventListener('input', sincronizarModelo);
+        document.getElementById('vehiculoForm').addEventListener('submit', () => {
+            sincronizarMarca();
+            sincronizarModelo();
+        });
+
+        if (valorMarcaInicial) {
+            if (catalogoVehiculos[valorMarcaInicial]) {
+                marcaSelect.value = valorMarcaInicial;
+                llenarModelos(valorMarcaInicial, valorModeloInicial);
+                sincronizarMarca();
+                modeloSelect.value = (catalogoVehiculos[valorMarcaInicial] || []).includes(valorModeloInicial) ? valorModeloInicial : '__otro__';
+                modeloManual.value = valorModeloInicial;
+                sincronizarModelo();
+            } else {
+                marcaSelect.value = '__otro__';
+                marcaManual.value = valorMarcaInicial;
+                modeloManual.value = valorModeloInicial;
+                sincronizarMarca();
+            }
+        }
+    </script>
 @endsection
