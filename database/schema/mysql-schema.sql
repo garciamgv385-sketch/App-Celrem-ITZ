@@ -117,6 +117,34 @@ CREATE TABLE `password_reset_tokens` (
   PRIMARY KEY (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `productos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `productos` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `categoria` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `marca` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sku` varchar(80) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unidad` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pieza',
+  `existencia` int unsigned NOT NULL DEFAULT '0',
+  `stock_minimo` int unsigned NOT NULL DEFAULT '0',
+  `precio_compra` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `precio_venta` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `proveedor` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ubicacion` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `estado` enum('activo','inactivo') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'activo',
+  `observaciones` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `productos_sku_unique` (`sku`),
+  KEY `productos_nombre_index` (`nombre`),
+  KEY `productos_categoria_index` (`categoria`),
+  KEY `productos_marca_index` (`marca`),
+  KEY `productos_estado_index` (`estado`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `sessions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

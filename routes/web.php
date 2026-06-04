@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CitaController;
+use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\VehiculoController;
 
 Route::get('/', function () {
@@ -24,6 +25,9 @@ Route::get('/citas', [CitaController::class, 'index'])->middleware('auth')->name
 Route::post('/citas', [CitaController::class, 'store'])->middleware('auth')->name('citas.store');
 Route::resource('vehiculos', VehiculoController::class)->only(['index', 'create', 'store', 'update', 'destroy'])->middleware('auth');
 
-Route::view('/inventario', 'inventario.index')->middleware('auth')->name('inventario.index');
+Route::resource('inventario', ProductoController::class)
+    ->only(['index', 'store', 'update'])
+    ->parameters(['inventario' => 'producto'])
+    ->middleware('auth');
 
 Route::view('/compras', 'compras.index')->middleware('auth')->name('compras.index');

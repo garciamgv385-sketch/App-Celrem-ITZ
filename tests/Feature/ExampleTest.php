@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Cliente;
 use App\Models\Cita;
+use App\Models\Producto;
 use App\Models\Vehiculo;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -397,6 +398,83 @@ class ExampleTest extends TestCase
 
         $this->assertDatabaseMissing('citas', [
             'vehiculo_id' => $vehiculoDeOtroCliente->id,
+        ]);
+    }
+
+    public function test_authenticated_user_can_create_and_filter_inventory_products(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('inventario.store'), [
+            'nombre' => 'Aceite 5W-30',
+            'categoria' => 'Lubricantes',
+            'marca' => 'Mobil',
+            'sku' => 'ACE-5W30',
+            'unidad' => 'litro',
+            'existencia' => 12,
+            'stock_minimo' => 5,
+            'precio_compra' => 120,
+            'precio_venta' => 180,
+            'proveedor' => 'Proveedor de prueba',
+            'ubicacion' => 'Estante A1',
+            'estado' => 'activo',
+            'observaciones' => 'Producto registrado desde prueba.',
+        ])->assertRedirect(route('inventario.index'));
+
+        $this->assertDatabaseHas('productos', [
+            'nombre' => 'Aceite 5W-30',
+            'sku' => 'ACE-5W30',
+            'existencia' => 12,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('inventario.index', ['buscar' => 'Mobil']))
+            ->assertOk()
+            ->assertSee('Aceite 5W-30')
+            ->assertSee('Mobil')
+            ->assertSee('Disponible');
+    }
+
+    public function test_authenticated_user_can_update_inventory_products(): void
+    {
+        $user = User::factory()->create();
+        $producto = Producto::create([
+            'nombre' => 'Filtro de aceite',
+            'categoria' => 'Filtros',
+            'marca' => 'Gonher',
+            'sku' => 'FIL-001',
+            'unidad' => 'pieza',
+            'existencia' => 3,
+            'stock_minimo' => 5,
+            'precio_compra' => 60,
+            'precio_venta' => 95,
+            'proveedor' => 'Proveedor inicial',
+            'ubicacion' => 'Estante B2',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)->put(route('inventario.update', $producto), [
+            'nombre' => 'Filtro de aceite premium',
+            'categoria' => 'Filtros',
+            'marca' => 'Gonher',
+            'sku' => 'FIL-001',
+            'unidad' => 'pieza',
+            'existencia' => 10,
+            'stock_minimo' => 4,
+            'precio_compra' => 70,
+            'precio_venta' => 120,
+            'proveedor' => 'Proveedor actualizado',
+            'ubicacion' => 'Estante C1',
+            'estado' => 'activo',
+            'observaciones' => 'Actualizado desde prueba.',
+        ])->assertRedirect(route('inventario.index'));
+
+        $this->assertDatabaseHas('productos', [
+            'id' => $producto->id,
+            'nombre' => 'Filtro de aceite premium',
+            'existencia' => 10,
+            'precio_venta' => 120,
         ]);
     }
 }
