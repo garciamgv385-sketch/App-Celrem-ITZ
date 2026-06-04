@@ -26,6 +26,8 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('aut
 Route::resource('clientes', ClienteController::class)->middleware('auth');
 Route::get('/citas', [CitaController::class, 'index'])->middleware('auth')->name('citas.index');
 Route::post('/citas', [CitaController::class, 'store'])->middleware('auth')->name('citas.store');
+Route::put('/citas/{cita}', [CitaController::class, 'update'])->middleware('auth')->name('citas.update');
+Route::patch('/citas/{cita}/estado', [CitaController::class, 'updateEstado'])->middleware('auth')->name('citas.estado');
 Route::resource('vehiculos', VehiculoController::class)->only(['index', 'create', 'store', 'update', 'destroy'])->middleware('auth');
 
 Route::resource('inventario', ProductoController::class)

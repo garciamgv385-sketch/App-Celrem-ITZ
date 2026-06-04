@@ -14,11 +14,13 @@ class CitaController extends Controller
     public function index(Request $request)
     {
         $mes = $request->query('mes', now()->format('Y-m'));
+        $busqueda = $request->string('buscar')->trim()->toString();
+        $estadoFiltro = $request->string('estado')->trim()->toString();
+        $fechaFiltro = $request->string('fecha')->trim()->toString();
 
         $fechaActual = Carbon::createFromFormat('Y-m-d', $mes . '-01');
         $inicioMes = $fechaActual->copy()->startOfMonth();
         $finMes = $fechaActual->copy()->endOfMonth();
-
         $inicioCalendario = $inicioMes->copy()->startOfWeek(Carbon::MONDAY);
         $finCalendario = $finMes->copy()->endOfWeek(Carbon::SUNDAY);
 
@@ -33,23 +35,43 @@ class CitaController extends Controller
         $citas = Cita::with(['cliente', 'vehiculo'])
             ->whereBetween('fecha', [
                 $inicioCalendario->toDateString(),
-                $finCalendario->toDateString()
+                $finCalendario->toDateString(),
             ])
             ->orderBy('fecha')
             ->orderBy('hora')
             ->get()
-            ->groupBy(function ($cita) {
-                return $cita->fecha->toDateString();
-            });
+            ->groupBy(fn (Cita $cita) => $cita->fecha->toDateString());
+
+        $citasListado = Cita::query()
+            ->with(['cliente', 'vehiculo'])
+            ->when($busqueda !== '', function ($query) use ($busqueda) {
+                $query->where(function ($query) use ($busqueda) {
+                    $query->where('servicio', 'like', "%{$busqueda}%")
+                        ->orWhere('observaciones', 'like', "%{$busqueda}%")
+                        ->orWhereHas('cliente', function ($query) use ($busqueda) {
+                            $query->where('nombre', 'like', "%{$busqueda}%")
+                                ->orWhere('telefono', 'like', "%{$busqueda}%");
+                        })
+                        ->orWhereHas('vehiculo', function ($query) use ($busqueda) {
+                            $query->where('marca', 'like', "%{$busqueda}%")
+                                ->orWhere('modelo', 'like', "%{$busqueda}%")
+                                ->orWhere('placas', 'like', "%{$busqueda}%");
+                        });
+                });
+            })
+            ->when($estadoFiltro !== '', fn ($query) => $query->where('estado', $estadoFiltro))
+            ->when($fechaFiltro !== '', fn ($query) => $query->whereDate('fecha', $fechaFiltro))
+            ->orderByDesc('fecha')
+            ->orderBy('hora')
+            ->paginate(10)
+            ->withQueryString();
 
         $clientes = Cliente::where('estado', 'activo')
             ->orderBy('nombre')
             ->get();
-
         $vehiculos = Vehiculo::with('cliente')
             ->latest()
             ->get();
-
         $mesAnterior = $fechaActual->copy()->subMonth()->format('Y-m');
         $mesSiguiente = $fechaActual->copy()->addMonth()->format('Y-m');
         $serviciosCita = $this->serviciosCita();
@@ -59,18 +81,65 @@ class CitaController extends Controller
             'fechaActual',
             'dias',
             'citas',
+            'citasListado',
             'clientes',
             'vehiculos',
             'mesAnterior',
             'mesSiguiente',
             'serviciosCita',
-            'horariosCita'
+            'horariosCita',
+            'busqueda',
+            'estadoFiltro',
+            'fechaFiltro'
         ));
     }
 
     public function store(Request $request)
     {
+        $validated = $this->validatedData($request);
+
+        if ($error = $this->validarDisponibilidad($validated)) {
+            return back()->withErrors($error)->withInput();
+        }
+
+        Cita::create($validated);
+
+        return redirect()
+            ->route('citas.index', ['mes' => Carbon::parse($validated['fecha'])->format('Y-m')])
+            ->with('success', 'Cita agendada correctamente.');
+    }
+
+    public function update(Request $request, Cita $cita)
+    {
+        $validated = $this->validatedData($request);
+
+        if ($error = $this->validarDisponibilidad($validated, $cita)) {
+            return back()->withErrors($error)->withInput();
+        }
+
+        $cita->update($validated);
+
+        return redirect()
+            ->route('citas.index', ['mes' => Carbon::parse($validated['fecha'])->format('Y-m')])
+            ->with('success', 'Cita actualizada correctamente.');
+    }
+
+    public function updateEstado(Request $request, Cita $cita)
+    {
         $validated = $request->validate([
+            'estado' => ['required', Rule::in(['pendiente', 'confirmada', 'cancelada', 'atendida'])],
+        ]);
+
+        $cita->update($validated);
+
+        return redirect()
+            ->route('citas.index')
+            ->with('success', 'Estado de la cita actualizado correctamente.');
+    }
+
+    private function validatedData(Request $request): array
+    {
+        return $request->validate([
             'cliente_id' => ['required', 'exists:clientes,id'],
             'vehiculo_id' => [
                 'nullable',
@@ -81,39 +150,26 @@ class CitaController extends Controller
             'servicio' => ['required', Rule::in(array_keys($this->serviciosCita()))],
             'fecha' => ['required', 'date'],
             'hora' => ['required', Rule::in($this->horariosCita())],
-            'estado' => ['required', 'in:pendiente,confirmada,cancelada,atendida'],
+            'estado' => ['required', Rule::in(['pendiente', 'confirmada', 'cancelada', 'atendida'])],
             'observaciones' => ['nullable', 'string'],
         ]);
+    }
 
+    private function validarDisponibilidad(array $validated, ?Cita $cita = null): ?array
+    {
         if ($this->esDomingo($validated['fecha'])) {
-            return back()
-                ->withErrors([
-                    'fecha' => 'Los domingos son días inhábiles. Selecciona otro día.',
-                ])
-                ->withInput();
+            return ['fecha' => 'Los domingos son días inhábiles. Selecciona otro día.'];
         }
 
         if ($this->fechaHoraYaPaso($validated['fecha'], $validated['hora'])) {
-            return back()
-                ->withErrors([
-                    'hora' => 'No se pueden agendar citas antes del día y hora actual.',
-                ])
-                ->withInput();
+            return ['hora' => 'No se pueden agendar citas antes del día y hora actual.'];
         }
 
-        if ($this->horarioOcupado($validated['fecha'], $validated['hora'], $validated['servicio'])) {
-            return back()
-                ->withErrors([
-                    'hora' => 'El horario seleccionado se cruza con una cita existente. Elige otro espacio disponible.',
-                ])
-                ->withInput();
+        if ($this->horarioOcupado($validated['fecha'], $validated['hora'], $validated['servicio'], $cita)) {
+            return ['hora' => 'El horario seleccionado se cruza con una cita existente. Elige otro espacio disponible.'];
         }
 
-        Cita::create($validated);
-
-        return redirect()
-            ->route('citas.index', ['mes' => Carbon::parse($validated['fecha'])->format('Y-m')])
-            ->with('success', 'Cita agendada correctamente.');
+        return null;
     }
 
     private function serviciosCita(): array
@@ -152,7 +208,7 @@ class CitaController extends Controller
         return Carbon::parse("{$fecha} {$hora}")->lte(now());
     }
 
-    private function horarioOcupado(string $fecha, string $hora, string $servicio): bool
+    private function horarioOcupado(string $fecha, string $hora, string $servicio, ?Cita $citaIgnorada = null): bool
     {
         $servicios = $this->serviciosCita();
         $inicioNuevaCita = Carbon::parse("{$fecha} {$hora}");
@@ -165,6 +221,7 @@ class CitaController extends Controller
 
         return Cita::where('fecha', $fecha)
             ->whereIn('estado', ['pendiente', 'confirmada'])
+            ->when($citaIgnorada, fn ($query) => $query->whereKeyNot($citaIgnorada->id))
             ->get()
             ->contains(function (Cita $cita) use ($fecha, $inicioNuevaCita, $finNuevaCita, $servicios) {
                 $inicioExistente = Carbon::parse("{$fecha} {$cita->hora}");

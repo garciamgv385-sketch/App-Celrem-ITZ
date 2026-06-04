@@ -404,6 +404,98 @@ class ExampleTest extends TestCase
         ]);
     }
 
+    public function test_authenticated_user_can_update_appointment_data_and_status(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $user = User::factory()->create();
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente cita editable',
+            'telefono' => '443 100 2000',
+            'correo' => 'cita-editable@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)->post(route('citas.store'), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-15',
+            'hora' => '09:00',
+            'estado' => 'pendiente',
+            'observaciones' => 'Antes de editar.',
+        ])->assertRedirect(route('citas.index', ['mes' => '2026-06']));
+
+        $cita = Cita::where('observaciones', 'Antes de editar.')->firstOrFail();
+
+        $this->actingAs($user)->put(route('citas.update', $cita), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Diagnóstico general',
+            'fecha' => '2026-06-16',
+            'hora' => '10:00',
+            'estado' => 'confirmada',
+            'observaciones' => 'Datos actualizados.',
+        ])->assertRedirect(route('citas.index', ['mes' => '2026-06']));
+
+        $this->assertDatabaseHas('citas', [
+            'id' => $cita->id,
+            'servicio' => 'Diagnóstico general',
+            'fecha' => '2026-06-16',
+            'hora' => '10:00',
+            'estado' => 'confirmada',
+            'observaciones' => 'Datos actualizados.',
+        ]);
+
+        $this->actingAs($user)->patch(route('citas.estado', $cita), [
+            'estado' => 'atendida',
+        ])->assertRedirect(route('citas.index'));
+
+        $this->assertDatabaseHas('citas', [
+            'id' => $cita->id,
+            'estado' => 'atendida',
+        ]);
+    }
+
+    public function test_authenticated_user_can_filter_appointments_list(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $user = User::factory()->create();
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente filtro cita',
+            'telefono' => '443 400 5000',
+            'correo' => 'filtro-cita@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        Cita::create([
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Afinación',
+            'fecha' => '2026-06-18',
+            'hora' => '11:00',
+            'estado' => 'confirmada',
+            'observaciones' => 'Filtro especial.',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('citas.index', [
+                'buscar' => 'Filtro especial',
+                'estado' => 'confirmada',
+                'fecha' => '2026-06-18',
+                'mes' => '2026-06',
+            ]))
+            ->assertOk()
+            ->assertSee('Cliente filtro cita')
+            ->assertSee('Afinación')
+            ->assertSee('Filtro especial');
+    }
+
     public function test_authenticated_user_can_create_and_filter_inventory_products(): void
     {
         $user = User::factory()->create();

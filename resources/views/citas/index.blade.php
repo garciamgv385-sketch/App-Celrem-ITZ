@@ -48,7 +48,6 @@
         border-radius: 8px;
         padding: 8px;
         margin-top: 8px;
-        background: #e7f1ff;
         border-left: 4px solid #0d6efd;
         border-top: 0;
         border-right: 0;
@@ -57,58 +56,22 @@
         cursor: pointer;
     }
 
-    .appointment:hover,
-    .appointment:focus {
-        filter: brightness(0.97);
-        outline: 2px solid rgba(13, 110, 253, 0.25);
-        outline-offset: 2px;
-    }
-
-    .appointment-pendiente {
-        background: #fff3cd;
-        border-left-color: #ffc107;
-    }
-
-    .appointment-confirmada {
-        background: #e7f1ff;
-        border-left-color: #0d6efd;
-    }
-
-    .appointment-atendida {
-        background: #d1e7dd;
-        border-left-color: #198754;
-    }
-
-    .appointment-cancelada {
-        background: #f8d7da;
-        border-left-color: #dc3545;
-    }
-
-    .summary-card {
-        height: 100%;
-    }
+    .appointment-pendiente { background: #fff3cd; border-left-color: #ffc107; }
+    .appointment-confirmada { background: #e7f1ff; border-left-color: #0d6efd; }
+    .appointment-atendida { background: #d1e7dd; border-left-color: #198754; }
+    .appointment-cancelada { background: #f8d7da; border-left-color: #dc3545; }
 
     @media (max-width: 768px) {
-        .calendar-grid {
-            min-width: 900px;
-        }
-
-        .calendar-wrapper {
-            overflow-x: auto;
-        }
-
-        .calendar-day {
-            min-height: 150px;
-        }
+        .calendar-grid { min-width: 900px; }
+        .calendar-wrapper { overflow-x: auto; }
+        .calendar-day { min-height: 150px; }
     }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1 class="h3 mb-0">Agenda de citas</h1>
-        <p class="text-muted mb-0">
-            Programa servicios, revisiones y mantenimientos del taller.
-        </p>
+        <p class="text-muted mb-0">Programa y gestiona citas del taller.</p>
     </div>
 
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaCita">
@@ -117,32 +80,19 @@
 </div>
 
 @if (session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
+    <div class="alert alert-success">{{ session('success') }}</div>
 @endif
 
 @if ($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
+    <div class="alert alert-danger">{{ $errors->first() }}</div>
 @endif
 
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <a href="{{ route('citas.index', ['mes' => $mesAnterior]) }}" class="btn btn-outline-secondary">
-                Anterior
-            </a>
-
-            <h4 class="mb-0 text-capitalize">
-                {{ $fechaActual->translatedFormat('F Y') }}
-            </h4>
-
-            <a href="{{ route('citas.index', ['mes' => $mesSiguiente]) }}" class="btn btn-outline-secondary">
-                Siguiente
-            </a>
+            <a href="{{ route('citas.index', ['mes' => $mesAnterior]) }}" class="btn btn-outline-secondary">Anterior</a>
+            <h4 class="mb-0 text-capitalize">{{ $fechaActual->translatedFormat('F Y') }}</h4>
+            <a href="{{ route('citas.index', ['mes' => $mesSiguiente]) }}" class="btn btn-outline-secondary">Siguiente</a>
         </div>
 
         <div class="calendar-wrapper">
@@ -158,57 +108,36 @@
                 @foreach ($dias as $dia)
                     <div class="calendar-day {{ $dia->month !== $fechaActual->month ? 'day-muted' : '' }} {{ $dia->isSunday() ? 'day-disabled' : '' }}">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-semibold">
-                                {{ $dia->day }}
-                            </span>
-
-                            @if ($dia->isToday())
-                                <span class="badge bg-primary">Hoy</span>
-                            @endif
-
-                            @if ($dia->isSunday())
-                                <span class="badge bg-secondary">Inhábil</span>
-                            @endif
+                            <span class="fw-semibold">{{ $dia->day }}</span>
+                            <div class="d-flex gap-1">
+                                @if ($dia->isToday())
+                                    <span class="badge bg-primary">Hoy</span>
+                                @endif
+                                @if ($dia->isSunday())
+                                    <span class="badge bg-secondary">Inhábil</span>
+                                @endif
+                            </div>
                         </div>
 
                         @foreach ($citas->get($dia->toDateString(), []) as $cita)
-                            <button
-                                type="button"
-                                class="appointment appointment-{{ $cita->estado }}"
-                                data-bs-toggle="modal"
-                                data-bs-target="#modalCita{{ $cita->id }}"
-                            >
-                                <div class="fw-semibold">
-                                    @php
-                                        $duracionCita = $serviciosCita[$cita->servicio] ?? 60;
-                                        $inicioCita = \Carbon\Carbon::parse($cita->fecha->toDateString() . ' ' . $cita->hora);
-                                        $finCita = $inicioCita->copy()->addMinutes($duracionCita);
-                                    @endphp
-
-                                    {{ $inicioCita->format('H:i') }} - {{ $finCita->format('H:i') }} · {{ $cita->servicio }}
-                                </div>
-
-                                <div>
-                                    {{ $cita->cliente->nombre }}
-                                </div>
-
+                            @php
+                                $duracionCita = $serviciosCita[$cita->servicio] ?? 60;
+                                $inicioCita = \Carbon\Carbon::parse($cita->fecha->toDateString() . ' ' . $cita->hora);
+                                $finCita = $inicioCita->copy()->addMinutes($duracionCita);
+                            @endphp
+                            <button type="button" class="appointment appointment-{{ $cita->estado }}" data-bs-toggle="modal" data-bs-target="#modalCita{{ $cita->id }}">
+                                <div class="fw-semibold">{{ $inicioCita->format('H:i') }} - {{ $finCita->format('H:i') }} · {{ $cita->servicio }}</div>
+                                <div>{{ $cita->cliente->nombre }}</div>
                                 <div class="text-muted">
                                     @if ($cita->vehiculo)
-                                        {{ $cita->vehiculo->marca ?? '' }}
-                                        {{ $cita->vehiculo->modelo ?? '' }}
-                                        {{ $cita->vehiculo->placas ? '(' . $cita->vehiculo->placas . ')' : '' }}
+                                        {{ $cita->vehiculo->marca }} {{ $cita->vehiculo->modelo }} {{ $cita->vehiculo->placas ? '(' . $cita->vehiculo->placas . ')' : '' }}
                                     @else
                                         Sin vehículo
                                     @endif
                                 </div>
-
                                 <div class="mt-1">
-                                    <span class="badge bg-secondary">
-                                        {{ ucfirst($cita->estado) }}
-                                    </span>
-                                    <span class="badge bg-light text-dark">
-                                        {{ $duracionCita }} min
-                                    </span>
+                                    <span class="badge bg-secondary">{{ ucfirst($cita->estado) }}</span>
+                                    <span class="badge bg-light text-dark">{{ $duracionCita }} min</span>
                                 </div>
                             </button>
                         @endforeach
@@ -216,222 +145,149 @@
                 @endforeach
             </div>
         </div>
-
     </div>
 </div>
 
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
-        <div class="card shadow-sm border-0 summary-card">
+        <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
-                <h5 class="card-title mb-3">Resumen</h5>
-
+                <h5 class="card-title mb-3">Resumen del mes</h5>
                 <div class="row text-center">
-                    <div class="col-md-3 border-end">
-                        <h4 class="mb-0">{{ $citas->flatten(1)->count() }}</h4>
-                        <small class="text-muted">Citas del mes</small>
-                    </div>
-
-                    <div class="col-md-3 border-end">
-                        <h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'pendiente')->count() }}</h4>
-                        <small class="text-muted">Pendientes</small>
-                    </div>
-
-                    <div class="col-md-3 border-end">
-                        <h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'confirmada')->count() }}</h4>
-                        <small class="text-muted">Confirmadas</small>
-                    </div>
-
-                    <div class="col-md-3">
-                        <h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'atendida')->count() }}</h4>
-                        <small class="text-muted">Atendidas</small>
-                    </div>
+                    <div class="col-md-3 border-end"><h4 class="mb-0">{{ $citas->flatten(1)->count() }}</h4><small class="text-muted">Total</small></div>
+                    <div class="col-md-3 border-end"><h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'pendiente')->count() }}</h4><small class="text-muted">Pendientes</small></div>
+                    <div class="col-md-3 border-end"><h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'confirmada')->count() }}</h4><small class="text-muted">Confirmadas</small></div>
+                    <div class="col-md-3"><h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'atendida')->count() }}</h4><small class="text-muted">Atendidas</small></div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="col-lg-6">
-        <div class="card shadow-sm border-0 summary-card">
+        <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
-                <h5 class="card-title mb-3">Estados de las citas</h5>
-
-                <div class="d-flex flex-wrap gap-2 mb-3">
+                <h5 class="card-title mb-3">Estados</h5>
+                <div class="d-flex flex-wrap gap-2">
                     <span class="badge bg-warning text-dark px-3 py-2">Pendiente</span>
                     <span class="badge bg-primary px-3 py-2">Confirmada</span>
                     <span class="badge bg-success px-3 py-2">Atendida</span>
                     <span class="badge bg-danger px-3 py-2">Cancelada</span>
                 </div>
-
-                <p class="text-muted mb-0">
-                    Esta agenda permite organizar los servicios programados del taller.
-                    El calendario ocupa el espacio principal y la información de apoyo se muestra debajo.
-                </p>
             </div>
         </div>
     </div>
 </div>
 
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="card-title mb-0">Gestión de citas</h5>
+                <p class="text-muted mb-0 small">Filtra, cambia estado o modifica los datos de cada cita.</p>
+            </div>
+        </div>
+
+        <form method="GET" action="{{ route('citas.index') }}" class="row g-2 mb-3">
+            <input type="hidden" name="mes" value="{{ $fechaActual->format('Y-m') }}">
+            <div class="col-md-4">
+                <input type="text" name="buscar" class="form-control" value="{{ $busqueda }}" placeholder="Buscar cliente, servicio, placas o vehículo">
+            </div>
+            <div class="col-md-3">
+                <select name="estado" class="form-select">
+                    <option value="">Todos los estados</option>
+                    @foreach (['pendiente', 'confirmada', 'cancelada', 'atendida'] as $estado)
+                        <option value="{{ $estado }}" @selected($estadoFiltro === $estado)>{{ ucfirst($estado) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="date" name="fecha" class="form-control" value="{{ $fechaFiltro }}">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary">Filtrar</button>
+                <a href="{{ route('citas.index', ['mes' => $fechaActual->format('Y-m')]) }}" class="btn btn-outline-secondary">Limpiar</a>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>Cliente</th>
+                        <th>Vehículo</th>
+                        <th>Servicio</th>
+                        <th>Estado</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($citasListado as $cita)
+                        <tr>
+                            <td>{{ $cita->fecha->format('d/m/Y') }}</td>
+                            <td>{{ substr($cita->hora, 0, 5) }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ $cita->cliente->nombre }}</div>
+                                <div class="text-muted small">{{ $cita->cliente->telefono }}</div>
+                            </td>
+                            <td>
+                                @if ($cita->vehiculo)
+                                    {{ $cita->vehiculo->marca }} {{ $cita->vehiculo->modelo }}
+                                    <div class="text-muted small">{{ $cita->vehiculo->placas ?: 'Sin placas' }}</div>
+                                @else
+                                    <span class="text-muted">Sin vehículo</span>
+                                @endif
+                            </td>
+                            <td>{{ $cita->servicio }}</td>
+                            <td><span class="badge bg-secondary">{{ ucfirst($cita->estado) }}</span></td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalCita{{ $cita->id }}">Ver</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEstadoCita{{ $cita->id }}">Estado</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEditarCita{{ $cita->id }}">Editar</button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No hay citas con los filtros seleccionados.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            {{ $citasListado->links() }}
+        </div>
+    </div>
+</div>
+
+@php
+    $citasModales = $citas->flatten(1)->merge($citasListado->getCollection())->unique('id');
+@endphp
+
 <div class="modal fade" id="modalNuevaCita" tabindex="-1" aria-labelledby="modalNuevaCitaLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form action="{{ route('citas.store') }}" method="POST">
+            <form action="{{ route('citas.store') }}" method="POST" data-cita-form>
                 @csrf
-
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalNuevaCitaLabel">Agendar nueva cita</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
-
                 <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Cliente</label>
-                            <select id="clienteCita" name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror" required>
-                                <option value="">Selecciona un cliente</option>
-
-                                @foreach ($clientes as $cliente)
-                                    <option value="{{ $cliente->id }}" @selected(old('cliente_id') == $cliente->id)>
-                                        {{ $cliente->nombre }} - {{ $cliente->telefono }}
-                                    </option>
-                                @endforeach
-                            </select>
-
-                            @error('cliente_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Vehículo</label>
-                            <select id="vehiculoCita" name="vehiculo_id" class="form-select @error('vehiculo_id') is-invalid @enderror">
-                                <option value="">Sin vehículo asignado</option>
-
-                                @foreach ($vehiculos as $vehiculo)
-                                    <option
-                                        value="{{ $vehiculo->id }}"
-                                        data-cliente-id="{{ $vehiculo->cliente_id }}"
-                                        @selected(old('vehiculo_id') == $vehiculo->id)
-                                    >
-                                        {{ $vehiculo->marca ?? 'Vehículo' }}
-                                        {{ $vehiculo->modelo ?? '' }}
-                                        {{ $vehiculo->placas ? '- ' . $vehiculo->placas : '' }}
-                                        {{ $vehiculo->cliente ? '(' . $vehiculo->cliente->nombre . ')' : '' }}
-                                    </option>
-                                @endforeach
-                            </select>
-
-                            @error('vehiculo_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Servicio</label>
-                            <select id="servicioCita" name="servicio" class="form-select @error('servicio') is-invalid @enderror" required>
-                                <option value="">Selecciona un servicio</option>
-                                @foreach ($serviciosCita as $servicio => $duracion)
-                                    <option
-                                        value="{{ $servicio }}"
-                                        data-duration="{{ $duracion }}"
-                                        @selected(old('servicio') === $servicio)
-                                    >
-                                        {{ $servicio }} - {{ $duracion }} min
-                                    </option>
-                                @endforeach
-                            </select>
-                            <div id="duracionServicioCita" class="form-text">
-                                Selecciona un servicio para ver la duración estimada.
-                            </div>
-
-                            @error('servicio')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label">Fecha</label>
-                            <input
-                                type="date"
-                                id="fechaCita"
-                                name="fecha"
-                                class="form-control @error('fecha') is-invalid @enderror"
-                                value="{{ old('fecha') }}"
-                                min="{{ now()->toDateString() }}"
-                                required
-                            >
-
-                            @error('fecha')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label">Hora</label>
-                            <select
-                                id="horaCita"
-                                name="hora"
-                                class="form-select @error('hora') is-invalid @enderror"
-                                required
-                            >
-                                <option value="">Selecciona una hora</option>
-                                @foreach ($horariosCita as $horario)
-                                    <option value="{{ $horario }}" @selected(old('hora') === $horario)>
-                                        {{ $horario }}
-                                    </option>
-                                @endforeach
-                            </select>
-
-                            @error('hora')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Estado</label>
-                            <select name="estado" class="form-select @error('estado') is-invalid @enderror" required>
-                                <option value="pendiente" @selected(old('estado', 'pendiente') === 'pendiente')>Pendiente</option>
-                                <option value="confirmada" @selected(old('estado') === 'confirmada')>Confirmada</option>
-                                <option value="cancelada" @selected(old('estado') === 'cancelada')>Cancelada</option>
-                                <option value="atendida" @selected(old('estado') === 'atendida')>Atendida</option>
-                            </select>
-
-                            @error('estado')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-12">
-                            <label class="form-label">Observaciones</label>
-                            <textarea
-                                name="observaciones"
-                                class="form-control @error('observaciones') is-invalid @enderror"
-                                rows="3"
-                                placeholder="Detalles adicionales de la cita"
-                            >{{ old('observaciones') }}</textarea>
-
-                            @error('observaciones')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
+                    @include('citas.partials.form', ['cita' => null])
                 </div>
-
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                        Cancelar
-                    </button>
-
-                    <button type="submit" class="btn btn-primary">
-                        Guardar cita
-                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cita</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-@foreach ($citas->flatten(1) as $cita)
+@foreach ($citasModales as $cita)
     @php
         $duracionCita = $serviciosCita[$cita->servicio] ?? 60;
         $inicioCita = \Carbon\Carbon::parse($cita->fecha->toDateString() . ' ' . $cita->hora);
@@ -448,53 +304,86 @@
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
-
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <p class="text-muted mb-1">Fecha y hora</p>
-                            <p class="fw-semibold mb-0">
-                                {{ $cita->fecha->translatedFormat('d F Y') }}
-                            </p>
-                            <p class="mb-0">
-                                {{ $inicioCita->format('H:i') }} - {{ $finCita->format('H:i') }} ({{ $duracionCita }} min)
-                            </p>
+                            <p class="fw-semibold mb-0">{{ $cita->fecha->translatedFormat('d F Y') }}</p>
+                            <p class="mb-0">{{ $inicioCita->format('H:i') }} - {{ $finCita->format('H:i') }} ({{ $duracionCita }} min)</p>
                         </div>
-
                         <div class="col-md-6">
                             <p class="text-muted mb-1">Cliente</p>
                             <p class="fw-semibold mb-0">{{ $cita->cliente->nombre }}</p>
                             <p class="mb-0">{{ $cita->cliente->telefono }}</p>
-                            @if ($cita->cliente->correo)
-                                <p class="mb-0">{{ $cita->cliente->correo }}</p>
-                            @endif
                         </div>
-
                         <div class="col-md-6">
                             <p class="text-muted mb-1">Vehículo</p>
                             @if ($cita->vehiculo)
-                                <p class="fw-semibold mb-0">
-                                    {{ $cita->vehiculo->marca }} {{ $cita->vehiculo->modelo }}
-                                </p>
+                                <p class="fw-semibold mb-0">{{ $cita->vehiculo->marca }} {{ $cita->vehiculo->modelo }}</p>
                                 <p class="mb-0">Placas: {{ $cita->vehiculo->placas ?: 'Sin placas' }}</p>
-                                <p class="mb-0">Kilometraje: {{ number_format($cita->vehiculo->kilometraje_actual) }} km</p>
                             @else
                                 <p class="fw-semibold mb-0">Sin vehículo asignado</p>
                             @endif
                         </div>
-
                         <div class="col-md-6">
                             <p class="text-muted mb-1">Observaciones</p>
                             <p class="mb-0">{{ $cita->observaciones ?: 'Sin observaciones' }}</p>
                         </div>
                     </div>
                 </div>
-
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                        Cerrar
-                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEstadoCita{{ $cita->id }}" tabindex="-1" aria-labelledby="modalEstadoCitaLabel{{ $cita->id }}" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="{{ route('citas.estado', $cita) }}" method="POST">
+                    @csrf
+                    @method('PATCH')
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalEstadoCitaLabel{{ $cita->id }}">Cambiar estado</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">{{ $cita->cliente->nombre }} · {{ $cita->servicio }}</p>
+                        <label class="form-label">Estado</label>
+                        <select name="estado" class="form-select" required>
+                            @foreach (['pendiente', 'confirmada', 'cancelada', 'atendida'] as $estado)
+                                <option value="{{ $estado }}" @selected($cita->estado === $estado)>{{ ucfirst($estado) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar estado</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEditarCita{{ $cita->id }}" tabindex="-1" aria-labelledby="modalEditarCitaLabel{{ $cita->id }}" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <form action="{{ route('citas.update', $cita) }}" method="POST" data-cita-form>
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalEditarCitaLabel{{ $cita->id }}">Editar cita</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        @include('citas.partials.form', ['cita' => $cita])
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -502,95 +391,87 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const clienteCita = document.getElementById('clienteCita');
-        const vehiculoCita = document.getElementById('vehiculoCita');
-        const servicioCita = document.getElementById('servicioCita');
-        const duracionServicioCita = document.getElementById('duracionServicioCita');
-        const fechaCita = document.getElementById('fechaCita');
-        const horaCita = document.getElementById('horaCita');
-
         const formatoFechaLocal = function (fecha) {
             const mes = String(fecha.getMonth() + 1).padStart(2, '0');
             const dia = String(fecha.getDate()).padStart(2, '0');
-
             return `${fecha.getFullYear()}-${mes}-${dia}`;
         };
 
-        const actualizarDuracion = function () {
-            const opcionSeleccionada = servicioCita.options[servicioCita.selectedIndex];
-            const duracion = opcionSeleccionada ? opcionSeleccionada.dataset.duration : null;
+        document.querySelectorAll('[data-cita-form]').forEach(function (form) {
+            const cliente = form.querySelector('[data-cita-cliente]');
+            const vehiculo = form.querySelector('[data-cita-vehiculo]');
+            const servicio = form.querySelector('[data-cita-servicio]');
+            const duracion = form.querySelector('[data-cita-duracion]');
+            const fecha = form.querySelector('[data-cita-fecha]');
+            const hora = form.querySelector('[data-cita-hora]');
 
-            duracionServicioCita.textContent = duracion
-                ? `Este servicio apartará ${duracion} minutos.`
-                : 'Selecciona un servicio para ver la duración estimada.';
-        };
+            if (servicio && duracion) {
+                const actualizarDuracion = function () {
+                    const opcion = servicio.options[servicio.selectedIndex];
+                    const minutos = opcion ? opcion.dataset.duration : null;
+                    duracion.textContent = minutos ? `Este servicio apartará ${minutos} minutos.` : 'Selecciona un servicio para ver la duración estimada.';
+                };
+                servicio.addEventListener('change', actualizarDuracion);
+                actualizarDuracion();
+            }
 
-        if (servicioCita && duracionServicioCita) {
-            servicioCita.addEventListener('change', actualizarDuracion);
-            actualizarDuracion();
-        }
+            if (cliente && vehiculo) {
+                const opcionesVehiculos = Array.from(vehiculo.options).slice(1).map((option) => option.cloneNode(true));
+                const vehiculoInicial = vehiculo.value;
 
-        if (clienteCita && vehiculoCita) {
-            const opcionesVehiculos = Array.from(vehiculoCita.options)
-                .slice(1)
-                .map((option) => option.cloneNode(true));
-            const vehiculoInicial = vehiculoCita.value;
+                const filtrarVehiculos = function () {
+                    const clienteId = cliente.value;
+                    const valorActual = vehiculo.value || vehiculoInicial;
+                    vehiculo.innerHTML = '';
+                    vehiculo.append(new Option('Sin vehículo asignado', ''));
+                    vehiculo.disabled = !clienteId;
 
-            const filtrarVehiculos = function () {
-                const clienteId = clienteCita.value;
-                const valorActual = vehiculoCita.value || vehiculoInicial;
+                    opcionesVehiculos
+                        .filter((option) => option.dataset.clienteId === clienteId)
+                        .forEach((option) => {
+                            const nuevaOpcion = option.cloneNode(true);
+                            nuevaOpcion.selected = nuevaOpcion.value === valorActual;
+                            vehiculo.append(nuevaOpcion);
+                        });
+                };
 
-                vehiculoCita.innerHTML = '';
-                vehiculoCita.append(new Option('Sin vehículo asignado', ''));
-                vehiculoCita.disabled = !clienteId;
+                cliente.addEventListener('change', filtrarVehiculos);
+                filtrarVehiculos();
+            }
 
-                opcionesVehiculos
-                    .filter((option) => option.dataset.clienteId === clienteId)
-                    .forEach((option) => {
-                        const nuevaOpcion = option.cloneNode(true);
-                        nuevaOpcion.selected = nuevaOpcion.value === valorActual;
-                        vehiculoCita.append(nuevaOpcion);
-                    });
-            };
+            if (fecha && hora) {
+                const actualizarDisponibilidad = function () {
+                    const ahora = new Date();
+                    const hoy = formatoFechaLocal(ahora);
+                    const horaActual = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+                    const fechaSeleccionada = fecha.value;
+                    const fechaComoDate = fechaSeleccionada ? new Date(`${fechaSeleccionada}T00:00:00`) : null;
+                    const esDomingo = fechaComoDate ? fechaComoDate.getDay() === 0 : false;
+                    const esPasado = fechaSeleccionada && fechaSeleccionada < hoy;
 
-            clienteCita.addEventListener('change', filtrarVehiculos);
-            filtrarVehiculos();
-        }
-
-        if (fechaCita && horaCita) {
-            const actualizarDisponibilidad = function () {
-                const ahora = new Date();
-                const hoy = formatoFechaLocal(ahora);
-                const horaActual = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
-                const fechaSeleccionada = fechaCita.value;
-                const fechaComoDate = fechaSeleccionada ? new Date(`${fechaSeleccionada}T00:00:00`) : null;
-                const esDomingo = fechaComoDate ? fechaComoDate.getDay() === 0 : false;
-                const esPasado = fechaSeleccionada && fechaSeleccionada < hoy;
-
-                fechaCita.setCustomValidity('');
-
-                if (esDomingo) {
-                    fechaCita.setCustomValidity('Los domingos son días inhábiles.');
-                } else if (esPasado) {
-                    fechaCita.setCustomValidity('No se pueden agendar citas en fechas pasadas.');
-                }
-
-                Array.from(horaCita.options).forEach((option) => {
-                    if (!option.value) {
-                        return;
+                    fecha.setCustomValidity('');
+                    if (esDomingo) {
+                        fecha.setCustomValidity('Los domingos son días inhábiles.');
+                    } else if (esPasado) {
+                        fecha.setCustomValidity('No se pueden agendar citas en fechas pasadas.');
                     }
 
-                    option.disabled = esDomingo || esPasado || (fechaSeleccionada === hoy && option.value <= horaActual);
-                });
+                    Array.from(hora.options).forEach((option) => {
+                        if (!option.value) {
+                            return;
+                        }
+                        option.disabled = esDomingo || esPasado || (fechaSeleccionada === hoy && option.value <= horaActual);
+                    });
 
-                if (horaCita.selectedOptions.length && horaCita.selectedOptions[0].disabled) {
-                    horaCita.value = '';
-                }
-            };
+                    if (hora.selectedOptions.length && hora.selectedOptions[0].disabled) {
+                        hora.value = '';
+                    }
+                };
 
-            fechaCita.addEventListener('change', actualizarDisponibilidad);
-            actualizarDisponibilidad();
-        }
+                fecha.addEventListener('change', actualizarDisponibilidad);
+                actualizarDisponibilidad();
+            }
+        });
     });
 </script>
 
@@ -598,10 +479,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const modalNuevaCita = document.getElementById('modalNuevaCita');
-
             if (modalNuevaCita) {
-                const modal = new bootstrap.Modal(modalNuevaCita);
-                modal.show();
+                new bootstrap.Modal(modalNuevaCita).show();
             }
         });
     </script>
