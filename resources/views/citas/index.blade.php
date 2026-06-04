@@ -15,15 +15,16 @@
         background: #f8f9fa;
         font-weight: 600;
         text-align: center;
-        padding: 12px;
+        padding: 14px;
         border-bottom: 1px solid #dee2e6;
     }
 
     .calendar-day {
-        min-height: 145px;
-        padding: 10px;
+        min-height: 175px;
+        padding: 12px;
         border-right: 1px solid #dee2e6;
         border-bottom: 1px solid #dee2e6;
+        background: #fff;
     }
 
     .calendar-day:nth-child(7n) {
@@ -36,12 +37,13 @@
     }
 
     .appointment {
-        font-size: 12px;
+        font-size: 13px;
         border-radius: 8px;
-        padding: 6px;
-        margin-top: 6px;
+        padding: 8px;
+        margin-top: 8px;
         background: #e7f1ff;
         border-left: 4px solid #0d6efd;
+        color: #212529;
     }
 
     .appointment-pendiente {
@@ -49,14 +51,37 @@
         border-left-color: #ffc107;
     }
 
-    .appointment-cancelada {
-        background: #f8d7da;
-        border-left-color: #dc3545;
+    .appointment-confirmada {
+        background: #e7f1ff;
+        border-left-color: #0d6efd;
     }
 
     .appointment-atendida {
         background: #d1e7dd;
         border-left-color: #198754;
+    }
+
+    .appointment-cancelada {
+        background: #f8d7da;
+        border-left-color: #dc3545;
+    }
+
+    .summary-card {
+        height: 100%;
+    }
+
+    @media (max-width: 768px) {
+        .calendar-grid {
+            min-width: 900px;
+        }
+
+        .calendar-wrapper {
+            overflow-x: auto;
+        }
+
+        .calendar-day {
+            min-height: 150px;
+        }
     }
 </style>
 
@@ -85,119 +110,126 @@
     </div>
 @endif
 
-<div class="row g-4">
-    <div class="col-lg-9">
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
 
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <a href="{{ route('citas.index', ['mes' => $mesAnterior]) }}" class="btn btn-outline-secondary">
-                        Anterior
-                    </a>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <a href="{{ route('citas.index', ['mes' => $mesAnterior]) }}" class="btn btn-outline-secondary">
+                Anterior
+            </a>
 
-                    <h4 class="mb-0 text-capitalize">
-                        {{ $fechaActual->translatedFormat('F Y') }}
-                    </h4>
+            <h4 class="mb-0 text-capitalize">
+                {{ $fechaActual->translatedFormat('F Y') }}
+            </h4>
 
-                    <a href="{{ route('citas.index', ['mes' => $mesSiguiente]) }}" class="btn btn-outline-secondary">
-                        Siguiente
-                    </a>
-                </div>
+            <a href="{{ route('citas.index', ['mes' => $mesSiguiente]) }}" class="btn btn-outline-secondary">
+                Siguiente
+            </a>
+        </div>
 
-                <div class="calendar-grid">
-                    <div class="calendar-header">Lun</div>
-                    <div class="calendar-header">Mar</div>
-                    <div class="calendar-header">Mié</div>
-                    <div class="calendar-header">Jue</div>
-                    <div class="calendar-header">Vie</div>
-                    <div class="calendar-header">Sáb</div>
-                    <div class="calendar-header">Dom</div>
+        <div class="calendar-wrapper">
+            <div class="calendar-grid">
+                <div class="calendar-header">Lun</div>
+                <div class="calendar-header">Mar</div>
+                <div class="calendar-header">Mié</div>
+                <div class="calendar-header">Jue</div>
+                <div class="calendar-header">Vie</div>
+                <div class="calendar-header">Sáb</div>
+                <div class="calendar-header">Dom</div>
 
-                    @foreach ($dias as $dia)
-                        <div class="calendar-day {{ $dia->month !== $fechaActual->month ? 'day-muted' : '' }}">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-semibold">
-                                    {{ $dia->day }}
-                                </span>
+                @foreach ($dias as $dia)
+                    <div class="calendar-day {{ $dia->month !== $fechaActual->month ? 'day-muted' : '' }}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">
+                                {{ $dia->day }}
+                            </span>
 
-                                @if ($dia->isToday())
-                                    <span class="badge bg-primary">Hoy</span>
-                                @endif
-                            </div>
-
-                            @foreach ($citas->get($dia->toDateString(), []) as $cita)
-                                <div class="appointment appointment-{{ $cita->estado }}">
-                                    <div class="fw-semibold">
-                                        {{ substr($cita->hora, 0, 5) }} - {{ $cita->servicio }}
-                                    </div>
-
-                                    <div>
-                                        {{ $cita->cliente->nombre }}
-                                    </div>
-
-                                    <div class="text-muted">
-                                        @if ($cita->vehiculo)
-                                            {{ $cita->vehiculo->marca ?? '' }}
-                                            {{ $cita->vehiculo->modelo ?? '' }}
-                                            {{ $cita->vehiculo->placas ? '(' . $cita->vehiculo->placas . ')' : '' }}
-                                        @else
-                                            Sin vehículo asignado
-                                        @endif
-                                    </div>
-
-                                    <div class="mt-1">
-                                        <span class="badge bg-secondary">
-                                            {{ ucfirst($cita->estado) }}
-                                        </span>
-                                    </div>
-                                </div>
-                            @endforeach
+                            @if ($dia->isToday())
+                                <span class="badge bg-primary">Hoy</span>
+                            @endif
                         </div>
-                    @endforeach
-                </div>
 
+                        @foreach ($citas->get($dia->toDateString(), []) as $cita)
+                            <div class="appointment appointment-{{ $cita->estado }}">
+                                <div class="fw-semibold">
+                                    {{ substr($cita->hora, 0, 5) }} - {{ $cita->servicio }}
+                                </div>
+
+                                <div>
+                                    {{ $cita->cliente->nombre }}
+                                </div>
+
+                                <div class="text-muted">
+                                    @if ($cita->vehiculo)
+                                        {{ $cita->vehiculo->marca ?? '' }}
+                                        {{ $cita->vehiculo->modelo ?? '' }}
+                                        {{ $cita->vehiculo->placas ? '(' . $cita->vehiculo->placas . ')' : '' }}
+                                    @else
+                                        Sin vehículo
+                                    @endif
+                                </div>
+
+                                <div class="mt-1">
+                                    <span class="badge bg-secondary">
+                                        {{ ucfirst($cita->estado) }}
+                                    </span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 summary-card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Resumen</h5>
+
+                <div class="row text-center">
+                    <div class="col-md-3 border-end">
+                        <h4 class="mb-0">{{ $citas->flatten(1)->count() }}</h4>
+                        <small class="text-muted">Citas del mes</small>
+                    </div>
+
+                    <div class="col-md-3 border-end">
+                        <h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'pendiente')->count() }}</h4>
+                        <small class="text-muted">Pendientes</small>
+                    </div>
+
+                    <div class="col-md-3 border-end">
+                        <h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'confirmada')->count() }}</h4>
+                        <small class="text-muted">Confirmadas</small>
+                    </div>
+
+                    <div class="col-md-3">
+                        <h4 class="mb-0">{{ $citas->flatten(1)->where('estado', 'atendida')->count() }}</h4>
+                        <small class="text-muted">Atendidas</small>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-3">
-        <div class="card shadow-sm border-0 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 summary-card">
             <div class="card-body">
-                <h5 class="card-title">Resumen</h5>
+                <h5 class="card-title mb-3">Estados de las citas</h5>
 
-                <div class="d-flex justify-content-between border-bottom py-2">
-                    <span>Citas del mes</span>
-                    <strong>{{ $citas->flatten(1)->count() }}</strong>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <span class="badge bg-warning text-dark px-3 py-2">Pendiente</span>
+                    <span class="badge bg-primary px-3 py-2">Confirmada</span>
+                    <span class="badge bg-success px-3 py-2">Atendida</span>
+                    <span class="badge bg-danger px-3 py-2">Cancelada</span>
                 </div>
 
-                <div class="d-flex justify-content-between border-bottom py-2">
-                    <span>Pendientes</span>
-                    <strong>{{ $citas->flatten(1)->where('estado', 'pendiente')->count() }}</strong>
-                </div>
-
-                <div class="d-flex justify-content-between border-bottom py-2">
-                    <span>Confirmadas</span>
-                    <strong>{{ $citas->flatten(1)->where('estado', 'confirmada')->count() }}</strong>
-                </div>
-
-                <div class="d-flex justify-content-between py-2">
-                    <span>Atendidas</span>
-                    <strong>{{ $citas->flatten(1)->where('estado', 'atendida')->count() }}</strong>
-                </div>
-            </div>
-        </div>
-
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <h5 class="card-title">Estados</h5>
-
-                <span class="badge bg-warning text-dark mb-2">Pendiente</span>
-                <span class="badge bg-primary mb-2">Confirmada</span>
-                <span class="badge bg-success mb-2">Atendida</span>
-                <span class="badge bg-danger mb-2">Cancelada</span>
-
-                <p class="text-muted small mt-3 mb-0">
+                <p class="text-muted mb-0">
                     Esta agenda permite organizar los servicios programados del taller.
+                    El calendario ocupa el espacio principal y la información de apoyo se muestra debajo.
                 </p>
             </div>
         </div>
@@ -344,4 +376,17 @@
         </div>
     </div>
 </div>
+
+@if ($errors->any())
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalNuevaCita = document.getElementById('modalNuevaCita');
+
+            if (modalNuevaCita) {
+                const modal = new bootstrap.Modal(modalNuevaCita);
+                modal.show();
+            }
+        });
+    </script>
+@endif
 @endsection
