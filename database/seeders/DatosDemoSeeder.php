@@ -23,7 +23,15 @@ class DatosDemoSeeder extends Seeder
     {
         DB::transaction(function () {
             $faker = fake();
-
+		User::updateOrCreate(
+    ['email' => 'admin@admin.com'],
+    [
+        'name' => 'Administrador',
+        'password' => Hash::make('admin'),
+        'rol' => 'admin',
+        'cliente_id' => null,
+    ]
+);
             /*
             Total aproximado/exacto de registros principales:
             users: 400
