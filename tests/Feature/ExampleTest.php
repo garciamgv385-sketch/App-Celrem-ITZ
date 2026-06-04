@@ -58,6 +58,9 @@ class ExampleTest extends TestCase
         $response = $this->post(route('register.post'), [
             'name' => 'Usuario de prueba',
             'email' => $email,
+            'rol' => 'cliente',
+            'telefono' => '443 000 1111',
+            'direccion' => 'Zitacuaro',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
@@ -66,7 +69,37 @@ class ExampleTest extends TestCase
         $this->assertAuthenticated();
         $this->assertDatabaseHas('users', [
             'email' => $email,
+            'rol' => 'cliente',
         ]);
+        $this->assertDatabaseHas('clientes', [
+            'correo' => $email,
+            'telefono' => '443 000 1111',
+        ]);
+    }
+
+    public function test_admin_user_is_seeded_with_expected_credentials(): void
+    {
+        $this->seed();
+
+        $response = $this->post(route('login.post'), [
+            'email' => 'admin@admin.com',
+            'password' => 'admin',
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticated();
+        $this->assertTrue(auth()->user()->esAdmin());
+    }
+
+    public function test_authenticated_user_can_logout(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('logout'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
     }
 
     public function test_authenticated_user_can_create_and_view_clients(): void
@@ -93,6 +126,38 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('Cliente de prueba')
             ->assertSee('Cliente generado desde prueba.');
+    }
+
+    public function test_roles_restrict_customer_and_mechanic_access(): void
+    {
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente de rol',
+            'telefono' => '443 222 1212',
+            'correo' => 'rol@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $mecanico = User::factory()->create(['rol' => 'mecanico']);
+        $usuarioCliente = User::factory()->create([
+            'rol' => 'cliente',
+            'cliente_id' => $cliente->id,
+        ]);
+
+        $this->actingAs($mecanico)
+            ->post(route('clientes.store'), [
+                'nombre' => 'No permitido',
+                'telefono' => '443',
+                'correo' => null,
+                'direccion' => null,
+                'estado' => 'activo',
+                'observaciones' => null,
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($usuarioCliente)
+            ->get(route('inventario.index'))
+            ->assertForbidden();
     }
 
     public function test_authenticated_user_can_create_and_filter_vehicles(): void
@@ -402,6 +467,67 @@ class ExampleTest extends TestCase
         $this->assertDatabaseMissing('citas', [
             'vehiculo_id' => $vehiculoDeOtroCliente->id,
         ]);
+    }
+
+    public function test_customer_view_receives_anonymous_busy_blocks_without_other_customer_details(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $clientePropio = Cliente::create([
+            'nombre' => 'Cliente propio',
+            'telefono' => '443 111 1111',
+            'correo' => 'cliente-propio@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $clienteAjeno = Cliente::create([
+            'nombre' => 'Cliente reservado',
+            'telefono' => '443 999 9999',
+            'correo' => 'reservado@example.com',
+            'direccion' => 'Morelia',
+            'estado' => 'activo',
+            'observaciones' => 'Dato privado ajeno',
+        ]);
+        $vehiculoAjeno = Vehiculo::create([
+            'cliente_id' => $clienteAjeno->id,
+            'tipo' => 'auto',
+            'marca' => 'Honda',
+            'modelo' => 'Civic',
+            'anio' => 2020,
+            'placas' => 'PRIV-123',
+            'kilometraje_actual' => 25000,
+            'tipo_combustible' => 'gasolina',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $usuarioCliente = User::factory()->create([
+            'rol' => 'cliente',
+            'cliente_id' => $clientePropio->id,
+        ]);
+
+        Cita::create([
+            'cliente_id' => $clienteAjeno->id,
+            'vehiculo_id' => $vehiculoAjeno->id,
+            'servicio' => 'Mantenimiento preventivo',
+            'fecha' => '2026-06-15',
+            'hora' => '09:00',
+            'estado' => 'confirmada',
+            'observaciones' => 'Detalle privado de la cita',
+        ]);
+
+        $response = $this->actingAs($usuarioCliente)
+            ->get(route('citas.index', ['mes' => '2026-06']));
+
+        $response->assertOk()
+            ->assertSee('"cita_id":null', false)
+            ->assertSee('"fecha":"2026-06-15"', false)
+            ->assertSee('"inicio":"09:00"', false)
+            ->assertSee('"fin":"11:00"', false)
+            ->assertDontSee('Cliente reservado')
+            ->assertDontSee('443 999 9999')
+            ->assertDontSee('PRIV-123')
+            ->assertDontSee('Detalle privado de la cita');
     }
 
     public function test_authenticated_user_can_update_appointment_data_and_status(): void

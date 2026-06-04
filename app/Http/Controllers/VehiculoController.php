@@ -15,6 +15,7 @@ class VehiculoController extends Controller
 
         $vehiculos = Vehiculo::query()
             ->with('cliente')
+            ->when($request->user()->esCliente(), fn ($query) => $query->where('cliente_id', $request->user()->cliente_id))
             ->when($busqueda !== '', function ($query) use ($busqueda) {
                 $query->where(function ($query) use ($busqueda) {
                     $query->where('modelo', 'like', "%{$busqueda}%")
@@ -29,14 +30,20 @@ class VehiculoController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $clientes = Cliente::orderBy('nombre')->get();
+        $clientes = $request->user()->esCliente()
+            ? Cliente::whereKey($request->user()->cliente_id)->get()
+            : Cliente::where('estado', 'activo')->orderBy('nombre')->get();
 
         return view('vehiculos.index', compact('vehiculos', 'clientes', 'busqueda'));
     }
 
     public function create()
     {
-        $clientes = Cliente::orderBy('nombre')->get();
+        abort_if(request()->user()->esMecanico(), 403);
+
+        $clientes = request()->user()->esCliente()
+            ? Cliente::whereKey(request()->user()->cliente_id)->get()
+            : Cliente::where('estado', 'activo')->orderBy('nombre')->get();
         $catalogoVehiculos = $this->catalogoVehiculosMexico();
 
         return view('vehiculos.create', compact('clientes', 'catalogoVehiculos'));
@@ -44,6 +51,8 @@ class VehiculoController extends Controller
 
     public function store(Request $request)
     {
+        abort_if($request->user()->esMecanico(), 403);
+
         $validated = $request->validate([
             'cliente_id' => ['required', 'exists:clientes,id'],
             'tipo' => ['required', Rule::in(['moto', 'auto', 'servicio_pesado', 'camioneta', 'otro'])],
@@ -57,6 +66,10 @@ class VehiculoController extends Controller
             'observaciones' => ['nullable', 'string'],
         ]);
 
+        if ($request->user()->esCliente()) {
+            $validated['cliente_id'] = $request->user()->cliente_id;
+        }
+
         Vehiculo::create($validated);
 
         return redirect()
@@ -66,6 +79,9 @@ class VehiculoController extends Controller
 
     public function update(Request $request, Vehiculo $vehiculo)
     {
+        abort_if($request->user()->esMecanico(), 403);
+        abort_if($request->user()->esCliente() && $vehiculo->cliente_id !== $request->user()->cliente_id, 403);
+
         $validated = $request->validate([
             'cliente_id' => ['required', 'exists:clientes,id'],
             'tipo' => ['required', Rule::in(['moto', 'auto', 'servicio_pesado', 'camioneta', 'otro'])],
@@ -79,6 +95,10 @@ class VehiculoController extends Controller
             'observaciones' => ['nullable', 'string'],
         ]);
 
+        if ($request->user()->esCliente()) {
+            $validated['cliente_id'] = $request->user()->cliente_id;
+        }
+
         $vehiculo->update($validated);
 
         return redirect()
@@ -88,6 +108,9 @@ class VehiculoController extends Controller
 
     public function destroy(Vehiculo $vehiculo)
     {
+        abort_if(request()->user()->esMecanico(), 403);
+        abort_if(request()->user()->esCliente() && $vehiculo->cliente_id !== request()->user()->cliente_id, 403);
+
         $vehiculo->update(['estado' => 'inactivo']);
 
         return redirect()

@@ -7,9 +7,11 @@
             <p class="text-muted mb-0">Vehículos registrados y asignados a clientes.</p>
         </div>
 
-        <a href="{{ route('vehiculos.create') }}" class="btn btn-primary">
-            Nuevo vehículo
-        </a>
+        @unless (auth()->user()->esMecanico())
+            <a href="{{ route('vehiculos.create') }}" class="btn btn-primary">
+                Nuevo vehículo
+            </a>
+        @endunless
     </div>
 
     <div class="card shadow-sm border-0">
@@ -77,16 +79,18 @@
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#vehiculoEditar{{ $vehiculo->id }}">
-                                        Editar
-                                    </button>
-                                    <form action="{{ route('vehiculos.destroy', $vehiculo) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" @disabled($vehiculo->estado === 'inactivo')>
-                                            Eliminar
+                                    @unless (auth()->user()->esMecanico())
+                                        <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#vehiculoEditar{{ $vehiculo->id }}">
+                                            Editar
                                         </button>
-                                    </form>
+                                        <form action="{{ route('vehiculos.destroy', $vehiculo) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" @disabled($vehiculo->estado === 'inactivo')>
+                                                Eliminar
+                                            </button>
+                                        </form>
+                                    @endunless
                                 </td>
                             </tr>
                         @empty
@@ -107,6 +111,7 @@
     </div>
 
     @foreach ($vehiculos as $vehiculo)
+        @unless (auth()->user()->esMecanico())
         <div class="modal fade" id="vehiculoEditar{{ $vehiculo->id }}" tabindex="-1" aria-labelledby="vehiculoEditarLabel{{ $vehiculo->id }}" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered">
                 <div class="modal-content">
@@ -201,5 +206,6 @@
                 </div>
             </div>
         </div>
+        @endunless
     @endforeach
 @endsection

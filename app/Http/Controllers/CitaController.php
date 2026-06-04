@@ -33,6 +33,7 @@ class CitaController extends Controller
         }
 
         $citas = Cita::with(['cliente', 'vehiculo'])
+            ->when($request->user()->esCliente(), fn ($query) => $query->where('cliente_id', $request->user()->cliente_id))
             ->whereBetween('fecha', [
                 $inicioCalendario->toDateString(),
                 $finCalendario->toDateString(),
@@ -44,6 +45,7 @@ class CitaController extends Controller
 
         $citasListado = Cita::query()
             ->with(['cliente', 'vehiculo'])
+            ->when($request->user()->esCliente(), fn ($query) => $query->where('cliente_id', $request->user()->cliente_id))
             ->when($busqueda !== '', function ($query) use ($busqueda) {
                 $query->where(function ($query) use ($busqueda) {
                     $query->where('servicio', 'like', "%{$busqueda}%")
@@ -66,16 +68,18 @@ class CitaController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $clientes = Cliente::where('estado', 'activo')
-            ->orderBy('nombre')
-            ->get();
+        $clientes = $request->user()->esCliente()
+            ? Cliente::whereKey($request->user()->cliente_id)->get()
+            : Cliente::where('estado', 'activo')->orderBy('nombre')->get();
         $vehiculos = Vehiculo::with('cliente')
+            ->when($request->user()->esCliente(), fn ($query) => $query->where('cliente_id', $request->user()->cliente_id))
             ->latest()
             ->get();
         $mesAnterior = $fechaActual->copy()->subMonth()->format('Y-m');
         $mesSiguiente = $fechaActual->copy()->addMonth()->format('Y-m');
         $serviciosCita = $this->serviciosCita();
         $horariosCita = $this->horariosCita();
+        $bloquesOcupados = $this->bloquesOcupados($request);
 
         return view('citas.index', compact(
             'fechaActual',
@@ -88,6 +92,7 @@ class CitaController extends Controller
             'mesSiguiente',
             'serviciosCita',
             'horariosCita',
+            'bloquesOcupados',
             'busqueda',
             'estadoFiltro',
             'fechaFiltro'
@@ -96,6 +101,10 @@ class CitaController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->user()->esCliente()) {
+            $request->merge(['cliente_id' => $request->user()->cliente_id]);
+        }
+
         $validated = $this->validatedData($request);
 
         if ($error = $this->validarDisponibilidad($validated)) {
@@ -111,6 +120,12 @@ class CitaController extends Controller
 
     public function update(Request $request, Cita $cita)
     {
+        abort_if($request->user()->esCliente() && $cita->cliente_id !== $request->user()->cliente_id, 403);
+
+        if ($request->user()->esCliente()) {
+            $request->merge(['cliente_id' => $request->user()->cliente_id]);
+        }
+
         $validated = $this->validatedData($request);
 
         if ($error = $this->validarDisponibilidad($validated, $cita)) {
@@ -126,6 +141,8 @@ class CitaController extends Controller
 
     public function updateEstado(Request $request, Cita $cita)
     {
+        abort_if($request->user()->esCliente() && $cita->cliente_id !== $request->user()->cliente_id, 403);
+
         $validated = $request->validate([
             'estado' => ['required', Rule::in(['pendiente', 'confirmada', 'cancelada', 'atendida'])],
         ]);
@@ -196,6 +213,34 @@ class CitaController extends Controller
         }
 
         return $horarios;
+    }
+
+    private function bloquesOcupados(Request $request): array
+    {
+        $servicios = $this->serviciosCita();
+
+        return Cita::query()
+            ->whereIn('estado', ['pendiente', 'confirmada'])
+            ->whereDate('fecha', '>=', now()->toDateString())
+            ->whereDate('fecha', '<=', now()->copy()->addYear()->toDateString())
+            ->orderBy('fecha')
+            ->orderBy('hora')
+            ->get(['id', 'cliente_id', 'fecha', 'hora', 'servicio'])
+            ->map(function (Cita $cita) use ($request, $servicios) {
+                $inicio = Carbon::parse($cita->fecha->toDateString() . ' ' . $cita->hora);
+                $duracion = $servicios[$cita->servicio] ?? 60;
+                $puedeIdentificarCita = ! $request->user()->esCliente()
+                    || $cita->cliente_id === $request->user()->cliente_id;
+
+                return [
+                    'cita_id' => $puedeIdentificarCita ? $cita->id : null,
+                    'fecha' => $cita->fecha->toDateString(),
+                    'inicio' => $inicio->format('H:i'),
+                    'fin' => $inicio->copy()->addMinutes($duracion)->format('H:i'),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function esDomingo(string $fecha): bool

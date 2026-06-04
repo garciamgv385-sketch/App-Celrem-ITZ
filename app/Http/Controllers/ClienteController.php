@@ -9,9 +9,12 @@ class ClienteController extends Controller
 {
     public function index(Request $request)
     {
+        abort_if($request->user()->esCliente(), 403);
+
         $busqueda = $request->string('buscar')->trim()->toString();
 
         $clientes = Cliente::query()
+            ->when($request->user()->esMecanico(), fn ($query) => $query->where('estado', 'activo'))
             ->when($busqueda !== '', function ($query) use ($busqueda) {
                 $query->where(function ($query) use ($busqueda) {
                     $query->where('nombre', 'like', "%{$busqueda}%")
@@ -28,11 +31,15 @@ class ClienteController extends Controller
 
     public function create()
     {
+        abort_unless(request()->user()->esAdmin(), 403);
+
         return view('clientes.create');
     }
 
     public function store(Request $request)
     {
+        abort_unless($request->user()->esAdmin(), 403);
+
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:255'],
             'telefono' => ['required', 'string', 'max:30'],
@@ -61,6 +68,8 @@ class ClienteController extends Controller
 
     public function update(Request $request, Cliente $cliente)
     {
+        abort_unless($request->user()->esAdmin(), 403);
+
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:255'],
             'telefono' => ['required', 'string', 'max:30'],
@@ -79,6 +88,8 @@ class ClienteController extends Controller
 
     public function destroy(Cliente $cliente)
     {
+        abort_unless(request()->user()->esAdmin(), 403);
+
         $cliente->update(['estado' => 'inactivo']);
 
         return redirect()

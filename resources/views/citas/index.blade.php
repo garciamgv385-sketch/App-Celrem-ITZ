@@ -269,7 +269,7 @@
 <div class="modal fade" id="modalNuevaCita" tabindex="-1" aria-labelledby="modalNuevaCitaLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form action="{{ route('citas.store') }}" method="POST" data-cita-form>
+            <form action="{{ route('citas.store') }}" method="POST" data-cita-form data-cita-id="">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalNuevaCitaLabel">Agendar nueva cita</h5>
@@ -369,7 +369,7 @@
     <div class="modal fade" id="modalEditarCita{{ $cita->id }}" tabindex="-1" aria-labelledby="modalEditarCitaLabel{{ $cita->id }}" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
-                <form action="{{ route('citas.update', $cita) }}" method="POST" data-cita-form>
+                <form action="{{ route('citas.update', $cita) }}" method="POST" data-cita-form data-cita-id="{{ $cita->id }}">
                     @csrf
                     @method('PUT')
                     <div class="modal-header">
@@ -391,10 +391,17 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const bloquesOcupados = @json($bloquesOcupados);
+
         const formatoFechaLocal = function (fecha) {
             const mes = String(fecha.getMonth() + 1).padStart(2, '0');
             const dia = String(fecha.getDate()).padStart(2, '0');
             return `${fecha.getFullYear()}-${mes}-${dia}`;
+        };
+
+        const minutosDesdeHora = function (hora) {
+            const [horas, minutos] = hora.split(':').map(Number);
+            return (horas * 60) + minutos;
         };
 
         document.querySelectorAll('[data-cita-form]').forEach(function (form) {
@@ -404,11 +411,20 @@
             const duracion = form.querySelector('[data-cita-duracion]');
             const fecha = form.querySelector('[data-cita-fecha]');
             const hora = form.querySelector('[data-cita-hora]');
+            const citaActualId = Number(form.dataset.citaId || 0);
+
+            const obtenerDuracionSeleccionada = function () {
+                if (!servicio || servicio.selectedIndex < 0) {
+                    return 0;
+                }
+
+                const opcion = servicio.options[servicio.selectedIndex];
+                return Number(opcion?.dataset.duration || 0);
+            };
 
             if (servicio && duracion) {
                 const actualizarDuracion = function () {
-                    const opcion = servicio.options[servicio.selectedIndex];
-                    const minutos = opcion ? opcion.dataset.duration : null;
+                    const minutos = obtenerDuracionSeleccionada();
                     duracion.textContent = minutos ? `Este servicio apartará ${minutos} minutos.` : 'Selecciona un servicio para ver la duración estimada.';
                 };
                 servicio.addEventListener('change', actualizarDuracion);
@@ -440,6 +456,10 @@
             }
 
             if (fecha && hora) {
+                Array.from(hora.options).forEach((option) => {
+                    option.dataset.labelOriginal = option.textContent.trim();
+                });
+
                 const actualizarDisponibilidad = function () {
                     const ahora = new Date();
                     const hoy = formatoFechaLocal(ahora);
@@ -448,6 +468,15 @@
                     const fechaComoDate = fechaSeleccionada ? new Date(`${fechaSeleccionada}T00:00:00`) : null;
                     const esDomingo = fechaComoDate ? fechaComoDate.getDay() === 0 : false;
                     const esPasado = fechaSeleccionada && fechaSeleccionada < hoy;
+                    const duracionSeleccionada = obtenerDuracionSeleccionada();
+                    const cierreTaller = minutosDesdeHora('18:00');
+                    const bloquesDelDia = bloquesOcupados.filter((bloque) => {
+                        if (bloque.fecha !== fechaSeleccionada) {
+                            return false;
+                        }
+
+                        return !bloque.cita_id || Number(bloque.cita_id) !== citaActualId;
+                    });
 
                     fecha.setCustomValidity('');
                     if (esDomingo) {
@@ -460,7 +489,29 @@
                         if (!option.value) {
                             return;
                         }
-                        option.disabled = esDomingo || esPasado || (fechaSeleccionada === hoy && option.value <= horaActual);
+                        const inicioOpcion = minutosDesdeHora(option.value);
+                        const finOpcion = inicioOpcion + duracionSeleccionada;
+                        const rebasaCierre = duracionSeleccionada > 0 && finOpcion > cierreTaller;
+                        const seSolapa = duracionSeleccionada > 0 && bloquesDelDia.some((bloque) => {
+                            const inicioBloque = minutosDesdeHora(bloque.inicio);
+                            const finBloque = minutosDesdeHora(bloque.fin);
+
+                            return inicioOpcion < finBloque && finOpcion > inicioBloque;
+                        });
+                        const noDisponible = esDomingo
+                            || esPasado
+                            || (fechaSeleccionada === hoy && option.value <= horaActual)
+                            || rebasaCierre
+                            || seSolapa;
+
+                        option.disabled = noDisponible;
+                        option.textContent = option.dataset.labelOriginal;
+
+                        if (seSolapa) {
+                            option.textContent = `${option.dataset.labelOriginal} - No disponible`;
+                        } else if (rebasaCierre) {
+                            option.textContent = `${option.dataset.labelOriginal} - Rebasa horario`;
+                        }
                     });
 
                     if (hora.selectedOptions.length && hora.selectedOptions[0].disabled) {
@@ -469,6 +520,9 @@
                 };
 
                 fecha.addEventListener('change', actualizarDisponibilidad);
+                if (servicio) {
+                    servicio.addEventListener('change', actualizarDisponibilidad);
+                }
                 actualizarDisponibilidad();
             }
         });

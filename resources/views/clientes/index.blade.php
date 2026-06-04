@@ -7,9 +7,11 @@
             <p class="text-muted mb-0">Gestión de clientes registrados en el taller.</p>
         </div>
 
-        <a href="{{ route('clientes.create') }}" class="btn btn-primary">
-            Nuevo cliente
-        </a>
+        @if (auth()->user()->esAdmin())
+            <a href="{{ route('clientes.create') }}" class="btn btn-primary">
+                Nuevo cliente
+            </a>
+        @endif
     </div>
 
     <div class="card shadow-sm border-0">
@@ -66,16 +68,18 @@
                                     <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#clienteDetalle{{ $cliente->id }}">
                                         Ver
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#clienteEditar{{ $cliente->id }}">
-                                        Editar
-                                    </button>
-                                    <form action="{{ route('clientes.destroy', $cliente) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" @disabled($cliente->estado === 'inactivo')>
-                                            Eliminar
+                                    @if (auth()->user()->esAdmin())
+                                        <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#clienteEditar{{ $cliente->id }}">
+                                            Editar
                                         </button>
-                                    </form>
+                                        <form action="{{ route('clientes.destroy', $cliente) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" @disabled($cliente->estado === 'inactivo')>
+                                                Eliminar
+                                            </button>
+                                        </form>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -135,6 +139,7 @@
             </div>
         </div>
 
+        @if (auth()->user()->esAdmin())
         <div class="modal fade" id="clienteEditar{{ $cliente->id }}" tabindex="-1" aria-labelledby="clienteEditarLabel{{ $cliente->id }}" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
@@ -190,5 +195,6 @@
                 </div>
             </div>
         </div>
+        @endif
     @endforeach
 @endsection
