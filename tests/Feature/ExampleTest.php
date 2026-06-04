@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Cliente;
+use App\Models\Cita;
 use App\Models\Vehiculo;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Tests\TestCase;
 
@@ -20,6 +22,13 @@ class ExampleTest extends TestCase
             '--seed' => false,
             '--schema-path' => database_path('schema/no-schema-dump-for-tests.sql'),
         ];
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     /**
@@ -225,6 +234,169 @@ class ExampleTest extends TestCase
         $this->assertDatabaseHas('vehiculos', [
             'id' => $vehiculo->id,
             'estado' => 'inactivo',
+        ]);
+    }
+
+    public function test_appointments_block_their_full_service_duration(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $user = User::factory()->create();
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente con cita',
+            'telefono' => '443 777 8888',
+            'correo' => 'cita@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)->post(route('citas.store'), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Mantenimiento preventivo',
+            'fecha' => '2026-06-15',
+            'hora' => '09:00',
+            'estado' => 'pendiente',
+            'observaciones' => null,
+        ])->assertRedirect(route('citas.index', ['mes' => '2026-06']));
+
+        $this->actingAs($user)->post(route('citas.store'), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-15',
+            'hora' => '10:30',
+            'estado' => 'pendiente',
+            'observaciones' => null,
+        ])->assertSessionHasErrors('hora');
+
+        $this->actingAs($user)->post(route('citas.store'), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-15',
+            'hora' => '11:00',
+            'estado' => 'pendiente',
+            'observaciones' => null,
+        ])->assertRedirect(route('citas.index', ['mes' => '2026-06']));
+
+        $this->assertSame(2, Cita::where('fecha', '2026-06-15')->count());
+    }
+
+    public function test_appointments_only_accept_30_minute_time_slots(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $user = User::factory()->create();
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente hora invalida',
+            'telefono' => '443 123 4545',
+            'correo' => 'hora-invalida@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)->post(route('citas.store'), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-16',
+            'hora' => '09:15',
+            'estado' => 'pendiente',
+            'observaciones' => null,
+        ])->assertSessionHasErrors('hora');
+
+        $this->assertDatabaseMissing('citas', [
+            'fecha' => '2026-06-16',
+            'hora' => '09:15',
+        ]);
+    }
+
+    public function test_appointments_cannot_be_scheduled_in_the_past_or_on_sundays(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $user = User::factory()->create();
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente fecha invalida',
+            'telefono' => '443 222 1111',
+            'correo' => 'fecha-invalida@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)->post(route('citas.store'), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-04',
+            'hora' => '08:30',
+            'estado' => 'pendiente',
+            'observaciones' => null,
+        ])->assertSessionHasErrors('hora');
+
+        $this->actingAs($user)->post(route('citas.store'), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-07',
+            'hora' => '10:00',
+            'estado' => 'pendiente',
+            'observaciones' => null,
+        ])->assertSessionHasErrors('fecha');
+
+        $this->assertSame(0, Cita::count());
+    }
+
+    public function test_appointment_vehicle_must_belong_to_selected_client(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $user = User::factory()->create();
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente correcto',
+            'telefono' => '443 333 4444',
+            'correo' => 'cliente-correcto@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $otroCliente = Cliente::create([
+            'nombre' => 'Cliente distinto',
+            'telefono' => '443 555 6666',
+            'correo' => 'cliente-distinto@example.com',
+            'direccion' => 'Morelia',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $vehiculoDeOtroCliente = Vehiculo::create([
+            'cliente_id' => $otroCliente->id,
+            'tipo' => 'auto',
+            'marca' => 'Nissan',
+            'modelo' => 'Versa',
+            'anio' => 2022,
+            'placas' => 'OTRO-1',
+            'kilometraje_actual' => 15000,
+            'tipo_combustible' => 'gasolina',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)->post(route('citas.store'), [
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => $vehiculoDeOtroCliente->id,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-08',
+            'hora' => '10:00',
+            'estado' => 'pendiente',
+            'observaciones' => null,
+        ])->assertSessionHasErrors('vehiculo_id');
+
+        $this->assertDatabaseMissing('citas', [
+            'vehiculo_id' => $vehiculoDeOtroCliente->id,
         ]);
     }
 }

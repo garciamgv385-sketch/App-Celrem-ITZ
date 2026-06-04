@@ -36,6 +36,11 @@
         color: #adb5bd;
     }
 
+    .day-disabled {
+        background: #f8f9fa;
+        color: #6c757d;
+    }
+
     .appointment {
         width: 100%;
         font-size: 13px;
@@ -151,7 +156,7 @@
                 <div class="calendar-header">Dom</div>
 
                 @foreach ($dias as $dia)
-                    <div class="calendar-day {{ $dia->month !== $fechaActual->month ? 'day-muted' : '' }}">
+                    <div class="calendar-day {{ $dia->month !== $fechaActual->month ? 'day-muted' : '' }} {{ $dia->isSunday() ? 'day-disabled' : '' }}">
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">
                                 {{ $dia->day }}
@@ -159,6 +164,10 @@
 
                             @if ($dia->isToday())
                                 <span class="badge bg-primary">Hoy</span>
+                            @endif
+
+                            @if ($dia->isSunday())
+                                <span class="badge bg-secondary">Inhábil</span>
                             @endif
                         </div>
 
@@ -170,7 +179,13 @@
                                 data-bs-target="#modalCita{{ $cita->id }}"
                             >
                                 <div class="fw-semibold">
-                                    {{ substr($cita->hora, 0, 5) }} - {{ $cita->servicio }}
+                                    @php
+                                        $duracionCita = $serviciosCita[$cita->servicio] ?? 60;
+                                        $inicioCita = \Carbon\Carbon::parse($cita->fecha->toDateString() . ' ' . $cita->hora);
+                                        $finCita = $inicioCita->copy()->addMinutes($duracionCita);
+                                    @endphp
+
+                                    {{ $inicioCita->format('H:i') }} - {{ $finCita->format('H:i') }} · {{ $cita->servicio }}
                                 </div>
 
                                 <div>
@@ -190,6 +205,9 @@
                                 <div class="mt-1">
                                     <span class="badge bg-secondary">
                                         {{ ucfirst($cita->estado) }}
+                                    </span>
+                                    <span class="badge bg-light text-dark">
+                                        {{ $duracionCita }} min
                                     </span>
                                 </div>
                             </button>
@@ -269,7 +287,7 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Cliente</label>
-                            <select name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror" required>
+                            <select id="clienteCita" name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror" required>
                                 <option value="">Selecciona un cliente</option>
 
                                 @foreach ($clientes as $cliente)
@@ -286,11 +304,15 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Vehículo</label>
-                            <select name="vehiculo_id" class="form-select @error('vehiculo_id') is-invalid @enderror">
+                            <select id="vehiculoCita" name="vehiculo_id" class="form-select @error('vehiculo_id') is-invalid @enderror">
                                 <option value="">Sin vehículo asignado</option>
 
                                 @foreach ($vehiculos as $vehiculo)
-                                    <option value="{{ $vehiculo->id }}" @selected(old('vehiculo_id') == $vehiculo->id)>
+                                    <option
+                                        value="{{ $vehiculo->id }}"
+                                        data-cliente-id="{{ $vehiculo->cliente_id }}"
+                                        @selected(old('vehiculo_id') == $vehiculo->id)
+                                    >
                                         {{ $vehiculo->marca ?? 'Vehículo' }}
                                         {{ $vehiculo->modelo ?? '' }}
                                         {{ $vehiculo->placas ? '- ' . $vehiculo->placas : '' }}
@@ -306,15 +328,21 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Servicio</label>
-                            <select name="servicio" class="form-select @error('servicio') is-invalid @enderror" required>
+                            <select id="servicioCita" name="servicio" class="form-select @error('servicio') is-invalid @enderror" required>
                                 <option value="">Selecciona un servicio</option>
-                                <option value="Cambio de aceite" @selected(old('servicio') === 'Cambio de aceite')>Cambio de aceite</option>
-                                <option value="Afinación" @selected(old('servicio') === 'Afinación')>Afinación</option>
-                                <option value="Revisión de frenos" @selected(old('servicio') === 'Revisión de frenos')>Revisión de frenos</option>
-                                <option value="Cambio de filtros" @selected(old('servicio') === 'Cambio de filtros')>Cambio de filtros</option>
-                                <option value="Diagnóstico general" @selected(old('servicio') === 'Diagnóstico general')>Diagnóstico general</option>
-                                <option value="Mantenimiento preventivo" @selected(old('servicio') === 'Mantenimiento preventivo')>Mantenimiento preventivo</option>
+                                @foreach ($serviciosCita as $servicio => $duracion)
+                                    <option
+                                        value="{{ $servicio }}"
+                                        data-duration="{{ $duracion }}"
+                                        @selected(old('servicio') === $servicio)
+                                    >
+                                        {{ $servicio }} - {{ $duracion }} min
+                                    </option>
+                                @endforeach
                             </select>
+                            <div id="duracionServicioCita" class="form-text">
+                                Selecciona un servicio para ver la duración estimada.
+                            </div>
 
                             @error('servicio')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -325,9 +353,11 @@
                             <label class="form-label">Fecha</label>
                             <input
                                 type="date"
+                                id="fechaCita"
                                 name="fecha"
                                 class="form-control @error('fecha') is-invalid @enderror"
                                 value="{{ old('fecha') }}"
+                                min="{{ now()->toDateString() }}"
                                 required
                             >
 
@@ -338,13 +368,19 @@
 
                         <div class="col-md-3">
                             <label class="form-label">Hora</label>
-                            <input
-                                type="time"
+                            <select
+                                id="horaCita"
                                 name="hora"
-                                class="form-control @error('hora') is-invalid @enderror"
-                                value="{{ old('hora') }}"
+                                class="form-select @error('hora') is-invalid @enderror"
                                 required
                             >
+                                <option value="">Selecciona una hora</option>
+                                @foreach ($horariosCita as $horario)
+                                    <option value="{{ $horario }}" @selected(old('hora') === $horario)>
+                                        {{ $horario }}
+                                    </option>
+                                @endforeach
+                            </select>
 
                             @error('hora')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -396,6 +432,12 @@
 </div>
 
 @foreach ($citas->flatten(1) as $cita)
+    @php
+        $duracionCita = $serviciosCita[$cita->servicio] ?? 60;
+        $inicioCita = \Carbon\Carbon::parse($cita->fecha->toDateString() . ' ' . $cita->hora);
+        $finCita = $inicioCita->copy()->addMinutes($duracionCita);
+    @endphp
+
     <div class="modal fade" id="modalCita{{ $cita->id }}" tabindex="-1" aria-labelledby="modalCitaLabel{{ $cita->id }}" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
@@ -412,7 +454,10 @@
                         <div class="col-md-6">
                             <p class="text-muted mb-1">Fecha y hora</p>
                             <p class="fw-semibold mb-0">
-                                {{ $cita->fecha->translatedFormat('d F Y') }} a las {{ substr($cita->hora, 0, 5) }}
+                                {{ $cita->fecha->translatedFormat('d F Y') }}
+                            </p>
+                            <p class="mb-0">
+                                {{ $inicioCita->format('H:i') }} - {{ $finCita->format('H:i') }} ({{ $duracionCita }} min)
                             </p>
                         </div>
 
@@ -454,6 +499,100 @@
         </div>
     </div>
 @endforeach
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const clienteCita = document.getElementById('clienteCita');
+        const vehiculoCita = document.getElementById('vehiculoCita');
+        const servicioCita = document.getElementById('servicioCita');
+        const duracionServicioCita = document.getElementById('duracionServicioCita');
+        const fechaCita = document.getElementById('fechaCita');
+        const horaCita = document.getElementById('horaCita');
+
+        const formatoFechaLocal = function (fecha) {
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+
+            return `${fecha.getFullYear()}-${mes}-${dia}`;
+        };
+
+        const actualizarDuracion = function () {
+            const opcionSeleccionada = servicioCita.options[servicioCita.selectedIndex];
+            const duracion = opcionSeleccionada ? opcionSeleccionada.dataset.duration : null;
+
+            duracionServicioCita.textContent = duracion
+                ? `Este servicio apartará ${duracion} minutos.`
+                : 'Selecciona un servicio para ver la duración estimada.';
+        };
+
+        if (servicioCita && duracionServicioCita) {
+            servicioCita.addEventListener('change', actualizarDuracion);
+            actualizarDuracion();
+        }
+
+        if (clienteCita && vehiculoCita) {
+            const opcionesVehiculos = Array.from(vehiculoCita.options)
+                .slice(1)
+                .map((option) => option.cloneNode(true));
+            const vehiculoInicial = vehiculoCita.value;
+
+            const filtrarVehiculos = function () {
+                const clienteId = clienteCita.value;
+                const valorActual = vehiculoCita.value || vehiculoInicial;
+
+                vehiculoCita.innerHTML = '';
+                vehiculoCita.append(new Option('Sin vehículo asignado', ''));
+                vehiculoCita.disabled = !clienteId;
+
+                opcionesVehiculos
+                    .filter((option) => option.dataset.clienteId === clienteId)
+                    .forEach((option) => {
+                        const nuevaOpcion = option.cloneNode(true);
+                        nuevaOpcion.selected = nuevaOpcion.value === valorActual;
+                        vehiculoCita.append(nuevaOpcion);
+                    });
+            };
+
+            clienteCita.addEventListener('change', filtrarVehiculos);
+            filtrarVehiculos();
+        }
+
+        if (fechaCita && horaCita) {
+            const actualizarDisponibilidad = function () {
+                const ahora = new Date();
+                const hoy = formatoFechaLocal(ahora);
+                const horaActual = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+                const fechaSeleccionada = fechaCita.value;
+                const fechaComoDate = fechaSeleccionada ? new Date(`${fechaSeleccionada}T00:00:00`) : null;
+                const esDomingo = fechaComoDate ? fechaComoDate.getDay() === 0 : false;
+                const esPasado = fechaSeleccionada && fechaSeleccionada < hoy;
+
+                fechaCita.setCustomValidity('');
+
+                if (esDomingo) {
+                    fechaCita.setCustomValidity('Los domingos son días inhábiles.');
+                } else if (esPasado) {
+                    fechaCita.setCustomValidity('No se pueden agendar citas en fechas pasadas.');
+                }
+
+                Array.from(horaCita.options).forEach((option) => {
+                    if (!option.value) {
+                        return;
+                    }
+
+                    option.disabled = esDomingo || esPasado || (fechaSeleccionada === hoy && option.value <= horaActual);
+                });
+
+                if (horaCita.selectedOptions.length && horaCita.selectedOptions[0].disabled) {
+                    horaCita.value = '';
+                }
+            };
+
+            fechaCita.addEventListener('change', actualizarDisponibilidad);
+            actualizarDisponibilidad();
+        }
+    });
+</script>
 
 @if ($errors->any())
     <script>

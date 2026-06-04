@@ -217,9 +217,12 @@
             modeloSelect.disabled = !marca;
         }
 
-        function sincronizarMarca() {
+        function sincronizarMarca(preservarModelo = false) {
+            preservarModelo = preservarModelo === true;
+
             const marcaSeleccionada = marcaSelect.value;
             const usaMarcaManual = marcaSeleccionada === '__otro__';
+            const modeloSeleccionado = preservarModelo ? (modeloInput.value || modeloSelect.value) : '';
 
             marcaManual.classList.toggle('d-none', !usaMarcaManual);
             marcaManual.required = usaMarcaManual;
@@ -235,7 +238,7 @@
                 return;
             }
 
-            llenarModelos(marcaSeleccionada);
+            llenarModelos(marcaSeleccionada, modeloSeleccionado);
             sincronizarModelo();
         }
 
@@ -247,12 +250,12 @@
             modeloInput.value = usaModeloManual ? modeloManual.value.trim() : modeloSelect.value;
         }
 
-        marcaSelect.addEventListener('change', sincronizarMarca);
+        marcaSelect.addEventListener('change', () => sincronizarMarca());
         modeloSelect.addEventListener('change', sincronizarModelo);
-        marcaManual.addEventListener('input', sincronizarMarca);
+        marcaManual.addEventListener('input', () => sincronizarMarca(true));
         modeloManual.addEventListener('input', sincronizarModelo);
         document.getElementById('vehiculoForm').addEventListener('submit', () => {
-            sincronizarMarca();
+            sincronizarMarca(true);
             sincronizarModelo();
         });
 
