@@ -160,6 +160,178 @@ class ExampleTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_admin_dashboard_shows_operational_module_data(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $user = User::factory()->create(['rol' => 'admin']);
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente dashboard',
+            'telefono' => '443 100 1000',
+            'correo' => 'dashboard@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $proveedor = Proveedor::create([
+            'nombre' => 'Proveedor dashboard',
+            'rfc' => 'PDA260604AA1',
+            'telefono' => '443 200 2000',
+            'correo' => 'proveedor-dashboard@example.com',
+            'direccion' => 'Morelia',
+            'contacto' => 'Contacto dashboard',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        Producto::create([
+            'nombre' => 'Producto critico dashboard',
+            'categoria' => 'Filtros',
+            'marca' => 'Gonher',
+            'sku' => 'DASH-LOW',
+            'unidad' => 'pieza',
+            'existencia' => 1,
+            'stock_minimo' => 3,
+            'precio_compra' => 50,
+            'precio_venta' => 90,
+            'proveedor' => 'Proveedor dashboard',
+            'ubicacion' => 'A1',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        Cita::create([
+            'cliente_id' => $cliente->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-05',
+            'hora' => '09:00',
+            'estado' => 'confirmada',
+            'observaciones' => null,
+        ]);
+        Venta::create([
+            'cliente_id' => $cliente->id,
+            'fecha' => '2026-06-04',
+            'subtotal' => 250,
+            'estado' => 'registrada',
+            'observaciones' => null,
+        ]);
+        Compra::create([
+            'proveedor_id' => $proveedor->id,
+            'fecha' => '2026-06-04',
+            'subtotal' => 150,
+            'estado' => 'registrada',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Resumen operativo')
+            ->assertSee('Cliente dashboard')
+            ->assertSee('Producto critico dashboard')
+            ->assertSee('Proveedor dashboard')
+            ->assertSee('$250.00')
+            ->assertSee('$150.00');
+    }
+
+    public function test_customer_dashboard_only_shows_own_data_and_hides_operational_modules(): void
+    {
+        Carbon::setTestNow('2026-06-04 09:00:00');
+
+        $clientePropio = Cliente::create([
+            'nombre' => 'Cliente propio dashboard',
+            'telefono' => '443 300 3000',
+            'correo' => 'propio-dashboard@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $clienteAjeno = Cliente::create([
+            'nombre' => 'Cliente ajeno dashboard',
+            'telefono' => '443 400 4000',
+            'correo' => 'ajeno-dashboard@example.com',
+            'direccion' => 'Morelia',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        Vehiculo::create([
+            'cliente_id' => $clientePropio->id,
+            'tipo' => 'auto',
+            'marca' => 'Nissan',
+            'modelo' => 'March',
+            'anio' => 2021,
+            'placas' => 'OWN-111',
+            'kilometraje_actual' => 15000,
+            'tipo_combustible' => 'gasolina',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        Vehiculo::create([
+            'cliente_id' => $clienteAjeno->id,
+            'tipo' => 'auto',
+            'marca' => 'Toyota',
+            'modelo' => 'Corolla',
+            'anio' => 2022,
+            'placas' => 'OTH-222',
+            'kilometraje_actual' => 11000,
+            'tipo_combustible' => 'gasolina',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        Producto::create([
+            'nombre' => 'Inventario oculto dashboard',
+            'categoria' => 'Lubricantes',
+            'marca' => 'Mobil',
+            'sku' => 'HIDE-INV',
+            'unidad' => 'litro',
+            'existencia' => 1,
+            'stock_minimo' => 5,
+            'precio_compra' => 80,
+            'precio_venta' => 120,
+            'proveedor' => null,
+            'ubicacion' => null,
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        Cita::create([
+            'cliente_id' => $clientePropio->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Cambio de aceite',
+            'fecha' => '2026-06-05',
+            'hora' => '09:00',
+            'estado' => 'pendiente',
+            'observaciones' => null,
+        ]);
+        Cita::create([
+            'cliente_id' => $clienteAjeno->id,
+            'vehiculo_id' => null,
+            'servicio' => 'Diagnostico general',
+            'fecha' => '2026-06-05',
+            'hora' => '11:00',
+            'estado' => 'confirmada',
+            'observaciones' => null,
+        ]);
+        $usuarioCliente = User::factory()->create([
+            'rol' => 'cliente',
+            'cliente_id' => $clientePropio->id,
+        ]);
+
+        $this->actingAs($usuarioCliente)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Consulta tus vehiculos')
+            ->assertSee('Nissan')
+            ->assertSee('OWN-111')
+            ->assertSee('Cambio de aceite')
+            ->assertDontSee('Resumen operativo')
+            ->assertDontSee('Inventario critico')
+            ->assertDontSee('Inventario oculto dashboard')
+            ->assertDontSee('Cliente ajeno dashboard')
+            ->assertDontSee('OTH-222')
+            ->assertDontSee('Diagnostico general')
+            ->assertDontSee('Ventas del mes')
+            ->assertDontSee('Compras del mes');
+    }
+
     public function test_authenticated_user_can_create_and_filter_vehicles(): void
     {
         $user = User::factory()->create();
@@ -173,7 +345,7 @@ class ExampleTest extends TestCase
             'observaciones' => null,
         ]);
 
-        $clienteId = \App\Models\Cliente::where('correo', 'vehiculo@example.com')->value('id');
+        $clienteId = Cliente::where('correo', 'vehiculo@example.com')->value('id');
 
         $response = $this->actingAs($user)->post(route('vehiculos.store'), [
             'cliente_id' => $clienteId,
