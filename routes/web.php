@@ -23,3 +23,7 @@ Route::resource('clientes', ClienteController::class)->middleware('auth');
 Route::get('/citas', [CitaController::class, 'index'])->middleware('auth')->name('citas.index');
 Route::post('/citas', [CitaController::class, 'store'])->middleware('auth')->name('citas.store');
 Route::resource('vehiculos', VehiculoController::class)->only(['index', 'create', 'store', 'update', 'destroy'])->middleware('auth');
+
+Route::view('/inventario', 'inventario.index')->middleware('auth')->name('inventario.index');
+
+Route::view('/compras', 'compras.index')->middleware('auth')->name('compras.index');

@@ -6,12 +6,14 @@
         <a class="nav-link text-white" href="{{ route('clientes.index') }}">Clientes</a>
         <a class="nav-link text-white" href="{{ route('citas.index') }}">Citas</a>
         <a class="nav-link text-white" href="{{ route('vehiculos.index') }}">Vehiculos</a>
+        <a class="nav-link text-white" href="{{ route('inventario.index') }}">Inventario</a>
+        <a class="nav-link text-white" href="{{ route('compras.index') }}">Compras</a>
         <a class="nav-link text-white" href="#">Servicios</a>
         {{--
-        <a class="nav-link text-white" href="#">Inventario</a>
+ 
         <a class="nav-link text-white" href="#">Ordenes</a>
         <a class="nav-link text-white" href="#">Ventas</a>
-        <a class="nav-link text-white" href="#">Compras</a>
+       
         <a class="nav-link text-white" href="#">Reportes</a>
         --}}
     </nav>
