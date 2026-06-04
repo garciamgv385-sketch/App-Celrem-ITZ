@@ -2,10 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CompraController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\VehiculoController;
 
 Route::get('/', function () {
@@ -30,4 +32,15 @@ Route::resource('inventario', ProductoController::class)
     ->parameters(['inventario' => 'producto'])
     ->middleware('auth');
 
-Route::view('/compras', 'compras.index')->middleware('auth')->name('compras.index');
+Route::middleware('auth')->group(function () {
+    Route::get('/compras', [CompraController::class, 'index'])->name('compras.index');
+    Route::post('/compras/carrito', [CompraController::class, 'agregarProducto'])->name('compras.carrito.agregar');
+    Route::put('/compras/carrito', [CompraController::class, 'actualizarCarrito'])->name('compras.carrito.actualizar');
+    Route::delete('/compras/carrito', [CompraController::class, 'vaciarCarrito'])->name('compras.carrito.vaciar');
+    Route::delete('/compras/carrito/{producto}', [CompraController::class, 'eliminarProducto'])->name('compras.carrito.eliminar');
+    Route::post('/compras', [CompraController::class, 'store'])->name('compras.store');
+
+    Route::resource('proveedores', ProveedorController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->parameters(['proveedores' => 'proveedor']);
+});

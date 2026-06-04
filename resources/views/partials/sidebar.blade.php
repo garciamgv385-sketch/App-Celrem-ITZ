@@ -5,9 +5,10 @@
         <a class="nav-link text-white" href="{{ route('dashboard') }}">Panel principal</a>
         <a class="nav-link text-white" href="{{ route('clientes.index') }}">Clientes</a>
         <a class="nav-link text-white" href="{{ route('citas.index') }}">Citas</a>
-        <a class="nav-link text-white" href="{{ route('vehiculos.index') }}">Vehiculos</a>
+        <a class="nav-link text-white" href="{{ route('vehiculos.index') }}">Vehículos</a>
         <a class="nav-link text-white" href="{{ route('inventario.index') }}">Inventario</a>
         <a class="nav-link text-white" href="{{ route('compras.index') }}">Compras</a>
+        <a class="nav-link text-white" href="{{ route('proveedores.index') }}">Proveedores</a>
         <a class="nav-link text-white" href="#">Servicios</a>
         {{--
  

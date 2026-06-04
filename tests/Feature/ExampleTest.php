@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Cliente;
 use App\Models\Cita;
+use App\Models\Compra;
 use App\Models\Producto;
+use App\Models\Proveedor;
 use App\Models\Vehiculo;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -476,5 +478,146 @@ class ExampleTest extends TestCase
             'existencia' => 10,
             'precio_venta' => 120,
         ]);
+    }
+
+    public function test_authenticated_user_can_manage_suppliers(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('proveedores.store'), [
+            'nombre' => 'Refacciones del Centro',
+            'rfc' => 'RCE260604AA1',
+            'telefono' => '443 101 2020',
+            'correo' => 'compras@refacciones.test',
+            'direccion' => 'Centro',
+            'contacto' => 'Laura Perez',
+            'estado' => 'activo',
+            'observaciones' => 'Proveedor generado desde prueba.',
+        ])->assertRedirect(route('proveedores.index'));
+
+        $proveedor = Proveedor::where('rfc', 'RCE260604AA1')->firstOrFail();
+
+        $this->actingAs($user)
+            ->get(route('proveedores.index', ['buscar' => 'Laura']))
+            ->assertOk()
+            ->assertSee('Refacciones del Centro')
+            ->assertSee('Laura Perez');
+
+        $this->actingAs($user)->put(route('proveedores.update', $proveedor), [
+            'nombre' => 'Refacciones del Centro Actualizado',
+            'rfc' => 'RCE260604AA1',
+            'telefono' => '443 303 4040',
+            'correo' => 'ventas@refacciones.test',
+            'direccion' => 'Morelia',
+            'contacto' => 'Laura Perez',
+            'estado' => 'activo',
+            'observaciones' => 'Actualizado desde prueba.',
+        ])->assertRedirect(route('proveedores.index'));
+
+        $this->assertDatabaseHas('proveedores', [
+            'id' => $proveedor->id,
+            'nombre' => 'Refacciones del Centro Actualizado',
+            'telefono' => '443 303 4040',
+        ]);
+
+        $this->actingAs($user)
+            ->delete(route('proveedores.destroy', $proveedor))
+            ->assertRedirect(route('proveedores.index'));
+
+        $this->assertDatabaseHas('proveedores', [
+            'id' => $proveedor->id,
+            'estado' => 'inactivo',
+        ]);
+    }
+
+    public function test_purchase_cart_registers_multiple_products_and_updates_inventory(): void
+    {
+        $user = User::factory()->create();
+        $proveedor = Proveedor::create([
+            'nombre' => 'Lubricantes Express',
+            'rfc' => 'LEX260604AA1',
+            'telefono' => '443 909 8080',
+            'correo' => 'contacto@lubricantes.test',
+            'direccion' => 'Zitacuaro',
+            'contacto' => 'Mario Lopez',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $aceite = Producto::create([
+            'nombre' => 'Aceite 5W-30',
+            'categoria' => 'Lubricantes',
+            'marca' => 'Mobil',
+            'sku' => 'ACE-COMPRA',
+            'unidad' => 'litro',
+            'existencia' => 2,
+            'stock_minimo' => 5,
+            'precio_compra' => 100,
+            'precio_venta' => 180,
+            'proveedor' => 'Lubricantes Express',
+            'ubicacion' => 'A1',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $filtro = Producto::create([
+            'nombre' => 'Filtro de aceite',
+            'categoria' => 'Filtros',
+            'marca' => 'Gonher',
+            'sku' => 'FIL-COMPRA',
+            'unidad' => 'pieza',
+            'existencia' => 1,
+            'stock_minimo' => 3,
+            'precio_compra' => 60,
+            'precio_venta' => 95,
+            'proveedor' => 'Lubricantes Express',
+            'ubicacion' => 'B1',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)->post(route('compras.carrito.agregar'), [
+            'producto_id' => $aceite->id,
+            'cantidad' => 4,
+            'precio_unitario' => 110,
+        ])->assertRedirect(route('compras.index'));
+
+        $this->actingAs($user)->post(route('compras.carrito.agregar'), [
+            'producto_id' => $filtro->id,
+            'cantidad' => 6,
+            'precio_unitario' => 65,
+        ])->assertRedirect(route('compras.index'));
+
+        $this->actingAs($user)->post(route('compras.store'), [
+            'proveedor_id' => $proveedor->id,
+            'fecha' => '2026-06-10',
+            'observaciones' => 'Compra generada desde prueba.',
+        ])->assertRedirect(route('compras.index'));
+
+        $this->assertDatabaseHas('compras', [
+            'proveedor_id' => $proveedor->id,
+            'subtotal' => 830,
+        ]);
+        $this->assertDatabaseHas('compra_detalles', [
+            'producto_id' => $aceite->id,
+            'cantidad' => 4,
+            'precio_unitario' => 110,
+            'subtotal' => 440,
+        ]);
+        $this->assertDatabaseHas('compra_detalles', [
+            'producto_id' => $filtro->id,
+            'cantidad' => 6,
+            'precio_unitario' => 65,
+            'subtotal' => 390,
+        ]);
+        $this->assertDatabaseHas('productos', [
+            'id' => $aceite->id,
+            'existencia' => 6,
+            'precio_compra' => 110,
+        ]);
+        $this->assertDatabaseHas('productos', [
+            'id' => $filtro->id,
+            'existencia' => 7,
+            'precio_compra' => 65,
+        ]);
+        $this->assertSame(1, Compra::count());
     }
 }
