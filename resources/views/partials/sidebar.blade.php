@@ -8,12 +8,12 @@
         <a class="nav-link text-white" href="{{ route('vehiculos.index') }}">Vehículos</a>
         <a class="nav-link text-white" href="{{ route('inventario.index') }}">Inventario</a>
         <a class="nav-link text-white" href="{{ route('compras.index') }}">Compras</a>
+        <a class="nav-link text-white" href="{{ route('ventas.index') }}">Ventas</a>
         <a class="nav-link text-white" href="{{ route('proveedores.index') }}">Proveedores</a>
         <a class="nav-link text-white" href="#">Servicios</a>
         {{--
  
         <a class="nav-link text-white" href="#">Ordenes</a>
-        <a class="nav-link text-white" href="#">Ventas</a>
        
         <a class="nav-link text-white" href="#">Reportes</a>
         --}}

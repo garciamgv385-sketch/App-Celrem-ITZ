@@ -8,6 +8,7 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProveedorController;
+use App\Http\Controllers\VentaController;
 use App\Http\Controllers\VehiculoController;
 
 Route::get('/', function () {
@@ -39,6 +40,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/compras/carrito', [CompraController::class, 'vaciarCarrito'])->name('compras.carrito.vaciar');
     Route::delete('/compras/carrito/{producto}', [CompraController::class, 'eliminarProducto'])->name('compras.carrito.eliminar');
     Route::post('/compras', [CompraController::class, 'store'])->name('compras.store');
+
+    Route::get('/ventas', [VentaController::class, 'index'])->name('ventas.index');
+    Route::post('/ventas/carrito', [VentaController::class, 'agregarProducto'])->name('ventas.carrito.agregar');
+    Route::put('/ventas/carrito', [VentaController::class, 'actualizarCarrito'])->name('ventas.carrito.actualizar');
+    Route::delete('/ventas/carrito', [VentaController::class, 'vaciarCarrito'])->name('ventas.carrito.vaciar');
+    Route::delete('/ventas/carrito/{producto}', [VentaController::class, 'eliminarProducto'])->name('ventas.carrito.eliminar');
+    Route::post('/ventas', [VentaController::class, 'store'])->name('ventas.store');
 
     Route::resource('proveedores', ProveedorController::class)
         ->only(['index', 'store', 'update', 'destroy'])

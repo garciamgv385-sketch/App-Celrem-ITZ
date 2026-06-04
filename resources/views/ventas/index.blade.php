@@ -3,14 +3,14 @@
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0">Compras</h1>
+            <h1 class="h3 mb-0">Ventas</h1>
             <p class="text-muted mb-0">
-                Registra compras con múltiples productos y actualiza inventario automáticamente.
+                Registra ventas con carrito y búsqueda inteligente de productos.
             </p>
         </div>
 
-        <a href="{{ route('proveedores.index') }}" class="btn btn-outline-primary">
-            Proveedores
+        <a href="{{ route('inventario.index') }}" class="btn btn-outline-primary">
+            Inventario
         </a>
     </div>
 
@@ -26,9 +26,9 @@
         <div class="col-lg-5">
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Agregar producto al carrito</h5>
+                    <h5 class="card-title mb-3">Buscar producto</h5>
 
-                    <form action="{{ route('compras.index') }}" method="GET" class="mb-3">
+                    <form action="{{ route('ventas.index') }}" method="GET" class="mb-3">
                         <label class="form-label">Búsqueda inteligente</label>
                         <div class="input-group">
                             <input
@@ -42,17 +42,17 @@
                         </div>
                     </form>
 
-                    <form action="{{ route('compras.carrito.agregar') }}" method="POST">
+                    <form action="{{ route('ventas.carrito.agregar') }}" method="POST">
                         @csrf
 
                         <div class="mb-3">
                             <label class="form-label">Producto</label>
-                            <select id="productoCompra" name="producto_id" class="form-select @error('producto_id') is-invalid @enderror" required>
+                            <select id="productoVenta" name="producto_id" class="form-select @error('producto_id') is-invalid @enderror" required>
                                 <option value="">Selecciona un producto</option>
                                 @foreach ($productos as $producto)
                                     <option
                                         value="{{ $producto->id }}"
-                                        data-precio="{{ $producto->precio_compra }}"
+                                        data-precio="{{ $producto->precio_venta }}"
                                         data-existencia="{{ $producto->existencia }}"
                                         data-unidad="{{ $producto->unidad }}"
                                     >
@@ -62,7 +62,9 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <div id="productoCompraInfo" class="form-text">Busca y selecciona un producto para ver existencia actual.</div>
+                            <div id="productoVentaInfo" class="form-text">
+                                Busca y selecciona un producto para ver su existencia.
+                            </div>
                             @error('producto_id')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -78,8 +80,8 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label">Precio compra</label>
-                                <input id="precioCompra" type="number" name="precio_unitario" class="form-control @error('precio_unitario') is-invalid @enderror" value="{{ old('precio_unitario', 0) }}" min="0" step="0.01" required>
+                                <label class="form-label">Precio venta</label>
+                                <input id="precioVenta" type="number" name="precio_unitario" class="form-control @error('precio_unitario') is-invalid @enderror" value="{{ old('precio_unitario', 0) }}" min="0" step="0.01" required>
                                 @error('precio_unitario')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -97,22 +99,22 @@
 
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Datos de la compra</h5>
+                    <h5 class="card-title mb-3">Datos de la venta</h5>
 
-                    <form action="{{ route('compras.store') }}" method="POST">
+                    <form action="{{ route('ventas.store') }}" method="POST">
                         @csrf
 
                         <div class="mb-3">
-                            <label class="form-label">Proveedor</label>
-                            <select name="proveedor_id" class="form-select @error('proveedor_id') is-invalid @enderror" required>
-                                <option value="">Selecciona un proveedor</option>
-                                @foreach ($proveedores as $proveedor)
-                                    <option value="{{ $proveedor->id }}" @selected(old('proveedor_id') == $proveedor->id)>
-                                        {{ $proveedor->nombre }}
+                            <label class="form-label">Cliente</label>
+                            <select name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror">
+                                <option value="">Venta al público</option>
+                                @foreach ($clientes as $cliente)
+                                    <option value="{{ $cliente->id }}" @selected(old('cliente_id') == $cliente->id)>
+                                        {{ $cliente->nombre }}
                                     </option>
                                 @endforeach
                             </select>
-                            @error('proveedor_id')
+                            @error('cliente_id')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
@@ -135,8 +137,8 @@
 
                         <div class="d-flex justify-content-between align-items-center">
                             <strong>Total: ${{ number_format($totalCarrito, 2) }}</strong>
-                            <button type="submit" class="btn btn-success" @disabled(empty($carrito) || $proveedores->isEmpty())>
-                                Guardar compra
+                            <button type="submit" class="btn btn-success" @disabled(empty($carrito))>
+                                Guardar venta
                             </button>
                         </div>
                     </form>
@@ -149,7 +151,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">Mi carrito</h5>
-                        <form action="{{ route('compras.carrito.vaciar') }}" method="POST">
+                        <form action="{{ route('ventas.carrito.vaciar') }}" method="POST">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled(empty($carrito))>
@@ -159,9 +161,9 @@
                     </div>
 
                     @if (empty($carrito))
-                        <p class="text-muted mb-0">Agrega productos para formar una compra.</p>
+                        <p class="text-muted mb-0">Agrega productos para formar una venta.</p>
                     @else
-                        <form action="{{ route('compras.carrito.actualizar') }}" method="POST">
+                        <form action="{{ route('ventas.carrito.actualizar') }}" method="POST">
                             @csrf
                             @method('PUT')
 
@@ -170,6 +172,7 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th>Producto</th>
+                                            <th>Existencia</th>
                                             <th style="width: 120px;">Cantidad</th>
                                             <th style="width: 150px;">Precio</th>
                                             <th>Subtotal</th>
@@ -181,17 +184,20 @@
                                             <tr>
                                                 <td>
                                                     <div class="fw-semibold">{{ $item['nombre'] }}</div>
-                                                    <div class="text-muted small">{{ $item['sku'] ?: 'Sin SKU' }}</div>
+                                                    <div class="text-muted small">
+                                                        {{ $item['sku'] ?: 'Sin SKU' }} · {{ $item['categoria'] }} {{ $item['marca'] ? '· ' . $item['marca'] : '' }}
+                                                    </div>
                                                 </td>
+                                                <td>{{ $item['existencia'] }} {{ $item['unidad'] }}</td>
                                                 <td>
-                                                    <input type="number" name="items[{{ $item['producto_id'] }}][cantidad]" class="form-control form-control-sm" value="{{ $item['cantidad'] }}" min="1" required>
+                                                    <input type="number" name="items[{{ $item['producto_id'] }}][cantidad]" class="form-control form-control-sm" value="{{ $item['cantidad'] }}" min="1" max="{{ $item['existencia'] }}" required>
                                                 </td>
                                                 <td>
                                                     <input type="number" name="items[{{ $item['producto_id'] }}][precio_unitario]" class="form-control form-control-sm" value="{{ $item['precio_unitario'] }}" min="0" step="0.01" required>
                                                 </td>
                                                 <td>${{ number_format($item['subtotal'], 2) }}</td>
                                                 <td class="text-end">
-                                                    <button type="submit" form="eliminarCarrito{{ $item['producto_id'] }}" class="btn btn-sm btn-outline-danger">
+                                                    <button type="submit" form="eliminarVentaCarrito{{ $item['producto_id'] }}" class="btn btn-sm btn-outline-danger">
                                                         Quitar
                                                     </button>
                                                 </td>
@@ -200,7 +206,7 @@
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <th colspan="3" class="text-end">Total</th>
+                                            <th colspan="4" class="text-end">Total</th>
                                             <th>${{ number_format($totalCarrito, 2) }}</th>
                                             <th></th>
                                         </tr>
@@ -214,7 +220,7 @@
                         </form>
 
                         @foreach ($carrito as $item)
-                            <form id="eliminarCarrito{{ $item['producto_id'] }}" action="{{ route('compras.carrito.eliminar', $item['producto_id']) }}" method="POST" class="d-none">
+                            <form id="eliminarVentaCarrito{{ $item['producto_id'] }}" action="{{ route('ventas.carrito.eliminar', $item['producto_id']) }}" method="POST" class="d-none">
                                 @csrf
                                 @method('DELETE')
                             </form>
@@ -225,37 +231,37 @@
 
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Historial de compras</h5>
+                    <h5 class="card-title mb-3">Historial de ventas</h5>
 
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
                                     <th>Fecha</th>
-                                    <th>Proveedor</th>
+                                    <th>Cliente</th>
                                     <th>Productos</th>
                                     <th>Total</th>
                                     <th>Estado</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($compras as $compra)
+                                @forelse ($ventas as $venta)
                                     <tr>
-                                        <td>{{ $compra->fecha->format('d/m/Y') }}</td>
-                                        <td>{{ $compra->proveedor->nombre }}</td>
+                                        <td>{{ $venta->fecha->format('d/m/Y') }}</td>
+                                        <td>{{ $venta->cliente?->nombre ?? 'Venta al público' }}</td>
                                         <td>
-                                            @foreach ($compra->detalles as $detalle)
+                                            @foreach ($venta->detalles as $detalle)
                                                 <div class="small">
                                                     {{ $detalle->cantidad }} x {{ $detalle->producto->nombre }}
                                                 </div>
                                             @endforeach
                                         </td>
-                                        <td>${{ number_format((float) $compra->subtotal, 2) }}</td>
-                                        <td><span class="badge bg-success">{{ ucfirst($compra->estado) }}</span></td>
+                                        <td>${{ number_format((float) $venta->subtotal, 2) }}</td>
+                                        <td><span class="badge bg-success">{{ ucfirst($venta->estado) }}</span></td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted py-4">No hay compras registradas.</td>
+                                        <td colspan="5" class="text-center text-muted py-4">No hay ventas registradas.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -263,7 +269,7 @@
                     </div>
 
                     <div class="mt-3">
-                        {{ $compras->links() }}
+                        {{ $ventas->links() }}
                     </div>
                 </div>
             </div>
@@ -272,27 +278,27 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const productoCompra = document.getElementById('productoCompra');
-            const precioCompra = document.getElementById('precioCompra');
-            const productoCompraInfo = document.getElementById('productoCompraInfo');
+            const productoVenta = document.getElementById('productoVenta');
+            const precioVenta = document.getElementById('precioVenta');
+            const productoVentaInfo = document.getElementById('productoVentaInfo');
 
-            if (!productoCompra || !precioCompra || !productoCompraInfo) {
+            if (!productoVenta || !precioVenta || !productoVentaInfo) {
                 return;
             }
 
             const actualizarProducto = function () {
-                const opcion = productoCompra.options[productoCompra.selectedIndex];
+                const opcion = productoVenta.options[productoVenta.selectedIndex];
 
                 if (!opcion || !opcion.value) {
-                    productoCompraInfo.textContent = 'Busca y selecciona un producto para ver existencia actual.';
+                    productoVentaInfo.textContent = 'Busca y selecciona un producto para ver su existencia.';
                     return;
                 }
 
-                precioCompra.value = opcion.dataset.precio || 0;
-                productoCompraInfo.textContent = `Existencia actual: ${opcion.dataset.existencia} ${opcion.dataset.unidad}.`;
+                precioVenta.value = opcion.dataset.precio || 0;
+                productoVentaInfo.textContent = `Existencia disponible: ${opcion.dataset.existencia} ${opcion.dataset.unidad}.`;
             };
 
-            productoCompra.addEventListener('change', actualizarProducto);
+            productoVenta.addEventListener('change', actualizarProducto);
             actualizarProducto();
         });
     </script>

@@ -8,6 +8,7 @@ use App\Models\Cita;
 use App\Models\Compra;
 use App\Models\Producto;
 use App\Models\Proveedor;
+use App\Models\Venta;
 use App\Models\Vehiculo;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -619,5 +620,162 @@ class ExampleTest extends TestCase
             'precio_compra' => 65,
         ]);
         $this->assertSame(1, Compra::count());
+    }
+
+    public function test_purchase_product_search_matches_name_sku_category_or_brand(): void
+    {
+        $user = User::factory()->create();
+        Producto::create([
+            'nombre' => 'Anticongelante rojo',
+            'categoria' => 'Consumibles',
+            'marca' => 'Prestone',
+            'sku' => 'SKU-ANTI',
+            'unidad' => 'litro',
+            'existencia' => 0,
+            'stock_minimo' => 2,
+            'precio_compra' => 75,
+            'precio_venta' => 140,
+            'proveedor' => null,
+            'ubicacion' => null,
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('compras.index', ['buscar_producto' => 'Prestone']))
+            ->assertOk()
+            ->assertSee('Anticongelante rojo');
+
+        $this->actingAs($user)
+            ->get(route('compras.index', ['buscar_producto' => 'SKU-ANTI']))
+            ->assertOk()
+            ->assertSee('Anticongelante rojo');
+
+        $this->actingAs($user)
+            ->get(route('compras.index', ['buscar_producto' => 'Consumibles']))
+            ->assertOk()
+            ->assertSee('Anticongelante rojo');
+    }
+
+    public function test_sale_cart_registers_multiple_products_and_decrements_inventory(): void
+    {
+        $user = User::factory()->create();
+        $cliente = Cliente::create([
+            'nombre' => 'Cliente venta',
+            'telefono' => '443 777 0000',
+            'correo' => 'venta@example.com',
+            'direccion' => 'Zitacuaro',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $aceite = Producto::create([
+            'nombre' => 'Aceite 5W-30',
+            'categoria' => 'Lubricantes',
+            'marca' => 'Mobil',
+            'sku' => 'VEN-ACE',
+            'unidad' => 'litro',
+            'existencia' => 10,
+            'stock_minimo' => 3,
+            'precio_compra' => 100,
+            'precio_venta' => 180,
+            'proveedor' => 'Lubricantes Express',
+            'ubicacion' => 'A1',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+        $filtro = Producto::create([
+            'nombre' => 'Filtro de aceite',
+            'categoria' => 'Filtros',
+            'marca' => 'Gonher',
+            'sku' => 'VEN-FIL',
+            'unidad' => 'pieza',
+            'existencia' => 8,
+            'stock_minimo' => 2,
+            'precio_compra' => 60,
+            'precio_venta' => 95,
+            'proveedor' => 'Refacciones',
+            'ubicacion' => 'B1',
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)->post(route('ventas.carrito.agregar'), [
+            'producto_id' => $aceite->id,
+            'cantidad' => 2,
+            'precio_unitario' => 180,
+        ])->assertRedirect(route('ventas.index'));
+
+        $this->actingAs($user)->post(route('ventas.carrito.agregar'), [
+            'producto_id' => $filtro->id,
+            'cantidad' => 3,
+            'precio_unitario' => 95,
+        ])->assertRedirect(route('ventas.index'));
+
+        $this->actingAs($user)->post(route('ventas.store'), [
+            'cliente_id' => $cliente->id,
+            'fecha' => '2026-06-12',
+            'observaciones' => 'Venta generada desde prueba.',
+        ])->assertRedirect(route('ventas.index'));
+
+        $this->assertDatabaseHas('ventas', [
+            'cliente_id' => $cliente->id,
+            'subtotal' => 645,
+        ]);
+        $this->assertDatabaseHas('venta_detalles', [
+            'producto_id' => $aceite->id,
+            'cantidad' => 2,
+            'precio_unitario' => 180,
+            'subtotal' => 360,
+        ]);
+        $this->assertDatabaseHas('venta_detalles', [
+            'producto_id' => $filtro->id,
+            'cantidad' => 3,
+            'precio_unitario' => 95,
+            'subtotal' => 285,
+        ]);
+        $this->assertDatabaseHas('productos', [
+            'id' => $aceite->id,
+            'existencia' => 8,
+        ]);
+        $this->assertDatabaseHas('productos', [
+            'id' => $filtro->id,
+            'existencia' => 5,
+        ]);
+        $this->assertSame(1, Venta::count());
+    }
+
+    public function test_sales_product_search_matches_name_sku_category_or_brand(): void
+    {
+        $user = User::factory()->create();
+        Producto::create([
+            'nombre' => 'Bujia platino',
+            'categoria' => 'Encendido',
+            'marca' => 'NGK',
+            'sku' => 'SKU-BUJIA',
+            'unidad' => 'pieza',
+            'existencia' => 5,
+            'stock_minimo' => 1,
+            'precio_compra' => 40,
+            'precio_venta' => 80,
+            'proveedor' => null,
+            'ubicacion' => null,
+            'estado' => 'activo',
+            'observaciones' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('ventas.index', ['buscar_producto' => 'NGK']))
+            ->assertOk()
+            ->assertSee('Bujia platino');
+
+        $this->actingAs($user)
+            ->get(route('ventas.index', ['buscar_producto' => 'SKU-BUJIA']))
+            ->assertOk()
+            ->assertSee('Bujia platino');
+
+        $this->actingAs($user)
+            ->get(route('ventas.index', ['buscar_producto' => 'Encendido']))
+            ->assertOk()
+            ->assertSee('Bujia platino');
     }
 }

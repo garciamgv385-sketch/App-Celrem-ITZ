@@ -2,24 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Compra;
+use App\Models\Cliente;
 use App\Models\Producto;
-use App\Models\Proveedor;
+use App\Models\Venta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class CompraController extends Controller
+class VentaController extends Controller
 {
-    private const CARRITO_KEY = 'compra_carrito';
+    private const CARRITO_KEY = 'venta_carrito';
 
     public function index(Request $request)
     {
         $busqueda = $request->string('buscar_producto')->trim()->toString();
-        $proveedores = Proveedor::where('estado', 'activo')
-            ->orderBy('nombre')
-            ->get();
         $productos = Producto::query()
             ->where('estado', 'activo')
+            ->where('existencia', '>', 0)
             ->when($busqueda !== '', function ($query) use ($busqueda) {
                 $query->where(function ($query) use ($busqueda) {
                     $query->where('nombre', 'like', "%{$busqueda}%")
@@ -31,14 +29,18 @@ class CompraController extends Controller
             ->orderBy('nombre')
             ->limit(25)
             ->get();
+
+        $clientes = Cliente::where('estado', 'activo')
+            ->orderBy('nombre')
+            ->get();
         $carrito = $this->carrito();
-        $compras = Compra::with(['proveedor', 'detalles.producto'])
+        $ventas = Venta::with(['cliente', 'detalles.producto'])
             ->latest('fecha')
             ->latest()
             ->paginate(10);
         $totalCarrito = collect($carrito)->sum('subtotal');
 
-        return view('compras.index', compact('proveedores', 'productos', 'carrito', 'compras', 'totalCarrito', 'busqueda'));
+        return view('ventas.index', compact('productos', 'clientes', 'carrito', 'ventas', 'totalCarrito', 'busqueda'));
     }
 
     public function agregarProducto(Request $request)
@@ -49,7 +51,15 @@ class CompraController extends Controller
             'precio_unitario' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
         ]);
 
-        $producto = Producto::findOrFail($validated['producto_id']);
+        $producto = Producto::where('estado', 'activo')->findOrFail($validated['producto_id']);
+
+        if ($producto->existencia < $validated['cantidad']) {
+            return redirect()
+                ->route('ventas.index')
+                ->withErrors(['cantidad' => 'No hay existencia suficiente para agregar esa cantidad al carrito.'])
+                ->withInput();
+        }
+
         $carrito = $this->carrito();
         $productoId = (string) $producto->id;
         $cantidad = $validated['cantidad'];
@@ -58,11 +68,21 @@ class CompraController extends Controller
             $cantidad += $carrito[$productoId]['cantidad'];
         }
 
+        if ($producto->existencia < $cantidad) {
+            return redirect()
+                ->route('ventas.index')
+                ->withErrors(['cantidad' => 'La cantidad total en el carrito supera la existencia disponible.'])
+                ->withInput();
+        }
+
         $carrito[$productoId] = [
             'producto_id' => $producto->id,
             'nombre' => $producto->nombre,
             'sku' => $producto->sku,
+            'categoria' => $producto->categoria,
+            'marca' => $producto->marca,
             'unidad' => $producto->unidad,
+            'existencia' => $producto->existencia,
             'cantidad' => $cantidad,
             'precio_unitario' => (float) $validated['precio_unitario'],
             'subtotal' => $cantidad * (float) $validated['precio_unitario'],
@@ -71,8 +91,8 @@ class CompraController extends Controller
         session([self::CARRITO_KEY => $carrito]);
 
         return redirect()
-            ->route('compras.index')
-            ->with('success', 'Producto agregado al carrito.');
+            ->route('ventas.index')
+            ->with('success', 'Producto agregado al carrito de venta.');
     }
 
     public function actualizarCarrito(Request $request)
@@ -90,6 +110,16 @@ class CompraController extends Controller
                 continue;
             }
 
+            $producto = Producto::findOrFail($productoId);
+
+            if ($producto->existencia < (int) $item['cantidad']) {
+                return redirect()
+                    ->route('ventas.index')
+                    ->withErrors(['items' => "No hay existencia suficiente para {$producto->nombre}."])
+                    ->withInput();
+            }
+
+            $carrito[$productoId]['existencia'] = $producto->existencia;
             $carrito[$productoId]['cantidad'] = (int) $item['cantidad'];
             $carrito[$productoId]['precio_unitario'] = (float) $item['precio_unitario'];
             $carrito[$productoId]['subtotal'] = (int) $item['cantidad'] * (float) $item['precio_unitario'];
@@ -98,8 +128,8 @@ class CompraController extends Controller
         session([self::CARRITO_KEY => $carrito]);
 
         return redirect()
-            ->route('compras.index')
-            ->with('success', 'Carrito actualizado.');
+            ->route('ventas.index')
+            ->with('success', 'Carrito de venta actualizado.');
     }
 
     public function eliminarProducto(Producto $producto)
@@ -109,8 +139,8 @@ class CompraController extends Controller
         session([self::CARRITO_KEY => $carrito]);
 
         return redirect()
-            ->route('compras.index')
-            ->with('success', 'Producto eliminado del carrito.');
+            ->route('ventas.index')
+            ->with('success', 'Producto retirado del carrito.');
     }
 
     public function vaciarCarrito()
@@ -118,14 +148,14 @@ class CompraController extends Controller
         session()->forget(self::CARRITO_KEY);
 
         return redirect()
-            ->route('compras.index')
-            ->with('success', 'Carrito vaciado.');
+            ->route('ventas.index')
+            ->with('success', 'Carrito de venta vaciado.');
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'proveedor_id' => ['required', 'exists:proveedores,id'],
+            'cliente_id' => ['nullable', 'exists:clientes,id'],
             'fecha' => ['required', 'date'],
             'observaciones' => ['nullable', 'string'],
         ]);
@@ -134,14 +164,22 @@ class CompraController extends Controller
 
         if (empty($carrito)) {
             return redirect()
-                ->route('compras.index')
-                ->withErrors(['carrito' => 'Agrega al menos un producto al carrito antes de guardar la compra.'])
+                ->route('ventas.index')
+                ->withErrors(['carrito' => 'Agrega al menos un producto al carrito antes de guardar la venta.'])
                 ->withInput();
         }
 
         DB::transaction(function () use ($validated, $carrito) {
-            $compra = Compra::create([
-                'proveedor_id' => $validated['proveedor_id'],
+            foreach ($carrito as $item) {
+                $producto = Producto::lockForUpdate()->findOrFail($item['producto_id']);
+
+                if ($producto->existencia < $item['cantidad']) {
+                    throw new \RuntimeException("No hay existencia suficiente para {$producto->nombre}.");
+                }
+            }
+
+            $venta = Venta::create([
+                'cliente_id' => $validated['cliente_id'] ?? null,
                 'fecha' => $validated['fecha'],
                 'subtotal' => collect($carrito)->sum('subtotal'),
                 'estado' => 'registrada',
@@ -149,23 +187,22 @@ class CompraController extends Controller
             ]);
 
             foreach ($carrito as $item) {
-                $compra->detalles()->create([
+                $venta->detalles()->create([
                     'producto_id' => $item['producto_id'],
                     'cantidad' => $item['cantidad'],
                     'precio_unitario' => $item['precio_unitario'],
                     'subtotal' => $item['subtotal'],
                 ]);
 
-                Producto::whereKey($item['producto_id'])->increment('existencia', $item['cantidad']);
-                Producto::whereKey($item['producto_id'])->update(['precio_compra' => $item['precio_unitario']]);
+                Producto::whereKey($item['producto_id'])->decrement('existencia', $item['cantidad']);
             }
         });
 
         session()->forget(self::CARRITO_KEY);
 
         return redirect()
-            ->route('compras.index')
-            ->with('success', 'Compra registrada correctamente. El inventario fue actualizado.');
+            ->route('ventas.index')
+            ->with('success', 'Venta registrada correctamente. El inventario fue actualizado.');
     }
 
     private function carrito(): array
