@@ -37,13 +37,26 @@
     }
 
     .appointment {
+        width: 100%;
         font-size: 13px;
+        text-align: left;
         border-radius: 8px;
         padding: 8px;
         margin-top: 8px;
         background: #e7f1ff;
         border-left: 4px solid #0d6efd;
+        border-top: 0;
+        border-right: 0;
+        border-bottom: 0;
         color: #212529;
+        cursor: pointer;
+    }
+
+    .appointment:hover,
+    .appointment:focus {
+        filter: brightness(0.97);
+        outline: 2px solid rgba(13, 110, 253, 0.25);
+        outline-offset: 2px;
     }
 
     .appointment-pendiente {
@@ -150,7 +163,12 @@
                         </div>
 
                         @foreach ($citas->get($dia->toDateString(), []) as $cita)
-                            <div class="appointment appointment-{{ $cita->estado }}">
+                            <button
+                                type="button"
+                                class="appointment appointment-{{ $cita->estado }}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalCita{{ $cita->id }}"
+                            >
                                 <div class="fw-semibold">
                                     {{ substr($cita->hora, 0, 5) }} - {{ $cita->servicio }}
                                 </div>
@@ -174,7 +192,7 @@
                                         {{ ucfirst($cita->estado) }}
                                     </span>
                                 </div>
-                            </div>
+                            </button>
                         @endforeach
                     </div>
                 @endforeach
@@ -376,6 +394,66 @@
         </div>
     </div>
 </div>
+
+@foreach ($citas->flatten(1) as $cita)
+    <div class="modal fade" id="modalCita{{ $cita->id }}" tabindex="-1" aria-labelledby="modalCitaLabel{{ $cita->id }}" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="modalCitaLabel{{ $cita->id }}">{{ $cita->servicio }}</h5>
+                        <span class="badge bg-secondary">{{ ucfirst($cita->estado) }}</span>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Fecha y hora</p>
+                            <p class="fw-semibold mb-0">
+                                {{ $cita->fecha->translatedFormat('d F Y') }} a las {{ substr($cita->hora, 0, 5) }}
+                            </p>
+                        </div>
+
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Cliente</p>
+                            <p class="fw-semibold mb-0">{{ $cita->cliente->nombre }}</p>
+                            <p class="mb-0">{{ $cita->cliente->telefono }}</p>
+                            @if ($cita->cliente->correo)
+                                <p class="mb-0">{{ $cita->cliente->correo }}</p>
+                            @endif
+                        </div>
+
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Vehículo</p>
+                            @if ($cita->vehiculo)
+                                <p class="fw-semibold mb-0">
+                                    {{ $cita->vehiculo->marca }} {{ $cita->vehiculo->modelo }}
+                                </p>
+                                <p class="mb-0">Placas: {{ $cita->vehiculo->placas ?: 'Sin placas' }}</p>
+                                <p class="mb-0">Kilometraje: {{ number_format($cita->vehiculo->kilometraje_actual) }} km</p>
+                            @else
+                                <p class="fw-semibold mb-0">Sin vehículo asignado</p>
+                            @endif
+                        </div>
+
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Observaciones</p>
+                            <p class="mb-0">{{ $cita->observaciones ?: 'Sin observaciones' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endforeach
 
 @if ($errors->any())
     <script>
